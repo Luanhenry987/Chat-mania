@@ -2678,15 +2678,16 @@
     </script>
     
     <script>
-    // Código para vincular o player logado ao Webpushr
-    setTimeout(function() {
-        // Tenta pegar o nome do usuário do localStorage ou de uma variável global (ajuste se seu app usar outro nome)
-        const playerLogado = localStorage.getItem('username') || window.currentUsername; 
-        if (playerLogado) {
+    // Código para vincular o player logado ao Webpushr de forma definitiva
+    let verificadorPush = setInterval(function() {
+        // Puxando a chave EXATA que você usou no seu login (chat_username)
+        const playerLogado = localStorage.getItem('chat_username'); 
+        if (playerLogado && typeof webpushr !== 'undefined') {
             webpushr('id', playerLogado); 
-            console.log('Webpushr vinculado ao jogador:', playerLogado);
+            console.log('✅ Webpushr ativado e vinculado ao jogador:', playerLogado);
+            clearInterval(verificadorPush); // Para o relógio assim que o usuário for registrado
         }
-    }, 2000); // Aguarda 2 segundos para o app carregar o login
+    }, 2000); // Fica checando a cada 2 segundos até ele de fato logar na conta
     </script>
     <script>
         if('serviceWorker' in navigator){navigator.serviceWorker.register('webpushr-sw.js');}
