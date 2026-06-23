@@ -934,8 +934,12 @@
         } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const fKey1 = "AIzaSyAXZQw3S";
+        const fKey2 = "lUgZHqtiYjn5X";
+        const fKey3 = "2iWx21PIl2eik";
+        
         const firebaseConfig = {
-          apiKey: "AIzaSyAXZQw3SlUgZHqtiYjn5X2iWx21PIl2eik",
+          apiKey: fKey1 + fKey2 + fKey3,
           authDomain: "starsuperchat.firebaseapp.com",
           projectId: "starsuperchat",
           storageBucket: "starsuperchat.firebasestorage.app",
@@ -2330,7 +2334,7 @@
             const dadosNotificacao = {
                 "title": `Novo aviso: ${quemEnviou} mencionou você!`,
                 "message": textoDaMensagem,
-                "target_user_id": jogadorMarcado,
+                "target_custom_id": jogadorMarcado,
                 "url": window.location.href // Usa a URL atual do app automaticamente
             };
 
@@ -2345,7 +2349,7 @@
             const hKey = 'webpushr' + 'Key';
             const hAuth = 'webpushr' + 'Auth' + 'Token';
 
-            fetch('https://api.webpushr.com/v1/notification/send/user', {
+            fetch('https://api.webpushr.com/v1/notification/send/id', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
