@@ -687,17 +687,67 @@
             <input type="text" id="username-input" placeholder="Digite seu usuário..." style="margin-bottom: 10px;">
             <input type="password" id="password-input" placeholder="Sua Senha Mestre..." style="margin-bottom: 10px; background: var(--bg-tertiary); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; outline: none;">
             
-                 <div id="register-fields">
-                <select id="class-select" style="width: 100%; padding: 15px; margin-bottom: 15px; border: none; border-radius: 8px; background: var(--bg-tertiary); color: white; outline: none; font-size: 1rem; cursor: pointer;">
-                    <option value="" disabled selected>Escolha sua Classe...</option>
-                    <option value="Mago">Mago</option>
-                    <option value="Arqueiro">Arqueiro</option>
-                    <option value="Armeiro">Armeiro</option>
-                    <option value="Guerreiro">Guerreiro</option>
-                    <option value="Summoner">Summoner</option>
-                    <option value="Ioiôzeiro">Ioiôzeiro</option>
+            <div id="register-fields">
+                <select id="class-select" style="width: 100%; padding: 15px; margin-bottom: 10px; border: none; border-radius: 8px; background: var(--bg-tertiary); color: white; outline: none; font-size: 1rem; cursor: pointer;">
+                    <option value="" disabled selected>Carregando classes...</option>
                 </select>
+                <div id="class-warning" style="color: #ff5252; font-size: 0.85rem; margin-bottom: 15px; display: none; text-align: center; font-weight: bold;">
+                    Algumas classes estão cheias. Escolha as vazias para manter o equilíbrio!
+                </div>
             </div>
+
+            <script>
+                // Integração com o banco de dados para contagem em tempo real
+                const classSelect = document.getElementById('class-select');
+                const classWarning = document.getElementById('class-warning');
+                
+                // Variável para armazenar as contagens puxadas do Firestore
+                let contagemClasses = {
+                    "Mago": 0,
+                    "Arqueiro": 0,
+                    "Armeiro": 0,
+                    "Guerreiro": 0,
+                    "Summoner": 0,
+                    "Ioiôzeiro": 0
+                };
+
+                function atualizarSelectDeClasses() {
+                    const classes = Object.keys(contagemClasses);
+                    
+                    // Verifica se todas as classes têm pelo menos 1 jogador
+                    const todasPreenchidas = classes.every(c => contagemClasses[c] > 0);
+                    
+                    classSelect.innerHTML = '<option value="" disabled selected>Escolha sua Classe...</option>';
+                    let temBloqueio = false;
+
+                    classes.forEach(nomeClasse => {
+                        const qtd = contagemClasses[nomeClasse];
+                        const option = document.createElement('option');
+                        option.value = nomeClasse;
+                        
+                        if (todasPreenchidas) {
+                            // Se todas as classes já têm pelo menos 1 jogador, libera geral e mostra a contagem
+                            option.textContent = `${nomeClasse} (${qtd} jogadores)`;
+                        } else {
+                            // Se nem todas têm, bloqueia as que já têm alguém
+                            if (qtd > 0) {
+                                option.textContent = `${nomeClasse} (Cheio)`;
+                                option.disabled = true;
+                                temBloqueio = true;
+                            } else {
+                                option.textContent = nomeClasse;
+                            }
+                        }
+                        classSelect.appendChild(option);
+                    });
+
+                    // Mostra o aviso se houver alguma classe bloqueada
+                    classWarning.style.display = temBloqueio ? 'block' : 'none';
+                }
+
+                // Execute atualizarSelectDeClasses() sempre que puxar ou atualizar a contagem de jogadores de cada classe do Firebase
+                atualizarSelectDeClasses();
+            </script>
             
             <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px; cursor: pointer; text-decoration: underline;" id="open-rules-btn">Ler Termos e Regras do RP</p>
             
@@ -930,7 +980,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
                 import { 
-            getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, deleteDoc, doc, getDocs, setDoc, getDoc, updateDoc, deleteField
+            getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, deleteDoc, doc, getDocs, setDoc, getDoc, updateDoc, deleteField, where
         } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -1565,6 +1615,17 @@
                     alert("🛑 Este nome de usuário já está em uso! Escolha outro ou clique em 'Entrar'.");
                     return;
                 }
+                
+                // --- TRAVA DE CLASSE ÚNICA ---
+                const classQuery = query(collection(db, "users"), where("terrariaClass", "==", charClass));
+                const classSnap = await getDocs(classQuery);
+                
+                if (!classSnap.empty) {
+                    alert(`🛑 A classe ${charClass} já foi escolhida por outro jogador! O RP exige que cada um tenha uma classe diferente.`);
+                    return;
+                }
+                // -----------------------------
+
                 currentUser.username = user;
                 currentUser.password = pass;
                 currentUser.terrariaClass = charClass;
