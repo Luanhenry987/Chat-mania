@@ -6,15 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lag & Desespero</title>
     <script>
-    (function(w,d, s, id) {if(typeof(w.webpushr)!=='undefined') return;w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};var js, fjs = d.getElementsByTagName(s)[0];js = d.createElement(s); js.id = id;js.async=1;js.src = "https://cdn.webpushr.com/app.min.js";
-    fjs.parentNode.appendChild(js);}(window,document, 'script', 'webpushr-jssdk'));
+    (function(w,d, s, id) {
+        if(typeof(w.webpushr)!=='undefined') return;
+        w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};
+        var js, fjs = d.getElementsByTagName(s)[0];
+        js = d.createElement(s); js.id = id; js.async = 1;
+        js.src = "https://cdn.webpushr.com/app.min.js";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(window, document, 'script', 'webpushr-jssdk'));
     
-    const wpK1 = 'BL3MDGAI7qTCnS';
-    const wpK2 = 'JcA1J6Hbm1E8VLL5j5l';
-    const wpK3 = 'AUTG_-GjMDxBPZM';
-    const wpK4 = 'TiO-6IvDfbeN2p-xys';
-    const wpK5 = '6Es3HwjRBSQxrA0J2TOm8';
-    webpushr('setup',{'key': wpK1 + wpK2 + wpK3 + wpK4 + wpK5 });
+    webpushr('setup', {'key': 'BL3MDGAI7qTCnSJcA1J6Hbm1E8VLL5j5lAUTG_-GjMDxBPZMTiO-6IvDfbeN2p-xys6Es3HwjRBSQxrA0J2TOm8'});
     </script>
     <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
        <style>
@@ -2689,6 +2690,11 @@
     </script>
     <script>
         if('serviceWorker' in navigator){navigator.serviceWorker.register('webpushr-sw.js');}
+    </script>
+    
+</body>
+</html>
+Worker.register('webpushr-sw.js');}
     </script>
     
 </body>
