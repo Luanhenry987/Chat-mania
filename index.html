@@ -130,6 +130,31 @@
         .admin-match-controls { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffcc00; }
         .admin-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .flex-row { display: flex; gap: 10px; align-items: center; }
+        
+        /* Novos Estilos Adicionados e Menu Admin */
+        .admin-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #ffcc00; padding-bottom: 10px; }
+        .admin-nav button { flex: 1 1 30%; background: #333; color: white; border: 1px solid #555; padding: 10px; font-size: 14px; border-radius: 5px; }
+        .admin-nav button.active { background: #ffcc00; color: black; border-color: #ffcc00; font-weight: bold; }
+        .admin-section { display: none; }
+        .admin-section.active { display: block; }
+        .btn-goal { background: #00bcd4; color: black; font-weight: bold; margin-top: 5px; transition: 0.2s; }
+        .btn-goal:hover { background: #00acc1; transform: scale(1.02); }
+        .details-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); text-align: left; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 15px; }
+        
+        /* NOVAS INTERFACES E TATICA */
+        .super-admin-panel { background: rgba(255, 0, 0, 0.1); border: 2px solid #d32f2f; }
+        .db-panel { background: rgba(0, 150, 255, 0.1); border: 2px solid #0096ff; }
+        .champ-badge { display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 8px; margin-bottom: 15px; border-bottom: 2px solid #ffcc00; }
+        .champ-logo { width: 30px; height: 30px; border-radius: 5px; }
+        
+        .lineup-grid { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 10px; }
+        .player-slot { display: grid; grid-template-columns: 60px 1fr; gap: 5px; }
+        .tactics-container { display: flex; gap: 15px; justify-content: space-between; margin-top: 15px; background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; border: 1px solid #ffcc00; }
+        .team-tactic { flex: 1; text-align: center; }
+        .formation-tag { display: inline-block; background: #ffcc00; color: #000; font-weight: bold; padding: 3px 10px; border-radius: 12px; font-size: 12px; margin-bottom: 10px; }
+        .player-list { list-style: none; padding: 0; margin: 0; text-align: left; font-size: 13px; }
+        .player-list li { padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 8px; }
+        .player-number { font-weight: bold; color: #ffcc00; font-family: monospace; font-size: 14px; min-width: 20px; }
     </style>
 </head>
 <body class="login-lock">
@@ -147,13 +172,12 @@
 
 
               <div id="app-screen" class="hidden">
-            <div class="nav-bar">
+             <div class="nav-bar">
                 <button id="tab-profile" class="active" onclick="showTab('profile')">Vestiário</button>
                 <button id="tab-chat" onclick="showTab('chat')">Resenha</button>
                 <button id="tab-matches" onclick="showTab('matches')">Jogos</button>
                 <button id="tab-admin" class="hidden" onclick="showTab('admin')" style="background: #1b5e20; border: 1px solid #ffcc00;">Admin</button>
                 <button id="tab-admin-chat" class="hidden" onclick="showTab('admin-chat')" style="background: #d32f2f; border: 1px solid #fff;">Chat Admin</button>
-                <button class="btn-danger" onclick="logout()">Sair</button>
             </div>
 
             <div id="sec-profile" class="card">
@@ -165,7 +189,11 @@
                     <input type="text" id="promo-code" placeholder="Insira o código aqui">
                     <button onclick="redeemCode()">Resgatar</button>
                 </div>
+                <div style="margin-top: 30px; border-top: 1px solid #d32f2f; padding-top: 20px; text-align: center;">
+                    <button class="btn-danger" onclick="logout()" style="max-width: 200px;">🚪 Sair da Conta</button>
+                </div>
             </div>
+
 
             <div id="sec-chat" class="card hidden">
                 <h2>Resenha da Torcida 📣</h2>
@@ -203,50 +231,117 @@
                 <div style="text-align: center; margin-bottom: 15px;">
                     <button class="btn-small" onclick="loadMatches('today')">Apenas Hoje</button>
                     <button class="btn-small" onclick="loadMatches('all')">Todos os Jogos</button>
+                    <select id="filter-champ" onchange="loadMatches()" style="margin-top: 10px; background: rgba(255,255,255,0.9); color: black;">
+                        <option value="all">🏆 Todos os Campeonatos</option>
+                    </select>
                 </div>
                 <div id="matches-list"></div>
             </div>
 
-            <div id="sec-admin" class="card hidden">
-                <h2>Administração do Clube</h2>
+                     <div id="sec-admin" class="card hidden">
+                <h2>Administração e Sistemas</h2>
                 
-                <div class="admin-panel">
-                    <h3>💸 Transferência de FC$</h3>
-                    <select id="admin-user-select"><option>Carregando jogadores...</option></select>
-                    <div class="flex-row">
-                        <input type="number" id="admin-money-amount" placeholder="Valor (Ex: 50)">
-                        <button onclick="adminTransferMoney(true)" style="background: #2e7d32; color: white;">Dar</button>
-                        <button onclick="adminTransferMoney(false)" class="btn-danger">Tirar</button>
+                <!-- Menu de Subcategorias Admin -->
+                <div class="admin-nav">
+                    <button id="btn-adm-banco" class="active" onclick="showAdminTab('banco')">🗄️ Ligas & Grana</button>
+                    <button id="btn-adm-criar" onclick="showAdminTab('criar')">🏟️ Criar Jogo</button>
+                    <button id="btn-adm-gerenciar" onclick="showAdminTab('gerenciar')">📋 Gerenciar Jogos</button>
+                    <button id="btn-adm-super" class="hidden" onclick="showAdminTab('super')" style="background: #b71c1c;">👑 Super ADM</button>
+                </div>
+
+                <!-- SUBCATEGORIA 1: LIGAS & GRANA -->
+                <div id="admin-tab-banco" class="admin-section active">
+                    <div class="admin-panel db-panel">
+                        <h3 style="color: #0096ff;">🗄️ Banco de Dados: Campeonatos</h3>
+                        <p style="font-size: 12px; color: #ccc;">Crie ligas oficiais do próprio app. Otimizado para não torrar o Firebase.</p>
+                        <div class="admin-controls-grid">
+                            <input type="text" id="new-champ-name" placeholder="🏆 Nome (Ex: Copa Flat)">
+                            <input type="text" id="new-champ-logo" placeholder="🖼️ URL Foto do Campeonato">
+                            <input type="text" id="new-champ-country" placeholder="🌎 País (Ex: Brasil)">
+                            <input type="text" id="new-champ-league" placeholder="⭐ Divisão (Ex: Série A)">
+                        </div>
+                        <button onclick="adminCreateChampionship()" style="background: #0096ff; color: white;">💾 Registrar Campeonato</button>
+                    </div>
+
+                    <div class="admin-panel">
+                        <h3>💸 Transferência de FC$</h3>
+                        <select id="admin-user-select"><option>Carregando jogadores...</option></select>
+                        <div class="flex-row">
+                            <input type="number" id="admin-money-amount" placeholder="Valor (Ex: 50)">
+                            <button onclick="adminTransferMoney(true)" style="background: #2e7d32; color: white;">Dar</button>
+                            <button onclick="adminTransferMoney(false)" class="btn-danger">Tirar</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="admin-panel" style="background: rgba(0, 200, 255, 0.1); border-color: #00c8ff;">
-                    <h3>📖 Mini Tutorial do Admin</h3>
-                    <ul style="text-align: left; font-size: 14px; color: #ddd; padding-left: 20px;">
-                        <li><strong>Criar Jogos:</strong> Digite os dados no quadro "Criar Novo Jogo" e clique no botão para criar.</li>
-                        <li><strong>Editar Jogos:</strong> Vá em "Gerenciar e Editar", altere o placar ou o status no jogo desejado. <strong>Só edite aqui!</strong></li>
-                        <li><strong>Fim de Jogo:</strong> Mude o status para "Encerrado", adicione a <strong>Posse de Bola</strong> e escolha o <strong>MVP ⭐</strong>.</li>
-                        <li><strong>Salvar:</strong> Tudo que você alterar exige um clique em "💾 Salvar Edição" para aparecer pros jogadores!</li>
-                    </ul>
-                </div>
+                <!-- SUBCATEGORIA 2: CRIAR JOGOS -->
+                <div id="admin-tab-criar" class="admin-section">
+                    <div class="admin-panel">
+                        <h3>🏟️ Criar Novo Jogo Oficial</h3>
+                        <select id="new-match-champ" style="border: 2px solid #ffcc00;">
+                            <option value="">🤝 Amistoso (Sem Campeonato)</option>
+                        </select>
+                        <div class="admin-controls-grid">
+                            <input type="text" id="new-match-home" placeholder="🏠 Nome Time Casa">
+                            <input type="text" id="new-match-away" placeholder="✈️ Nome Time Fora">
+                            <input type="text" id="new-match-home-logo" placeholder="🖼️ URL Escudo Casa">
+                            <input type="text" id="new-match-away-logo" placeholder="🖼️ URL Escudo Fora">
+                        </div>
+                        <input type="datetime-local" id="new-match-time">
 
-                <div class="admin-panel">
-                    <h3>🏟️ Criar Novo Jogo</h3>
-                    <div class="admin-controls-grid">
-                        <input type="text" id="new-match-home" placeholder="🏠 Nome Time Casa">
-                        <input type="text" id="new-match-away" placeholder="✈️ Nome Time Fora">
-                        <input type="text" id="new-match-home-logo" placeholder="🖼️ URL Escudo Casa">
-                        <input type="text" id="new-match-away-logo" placeholder="🖼️ URL Escudo Fora">
+                        <div style="background: rgba(0,0,0,0.5); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <h4 style="margin: 0 0 10px 0; color: #ffcc00; text-align: center;">📋 Lousa Tática e Escalação</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <h5>Time da Casa</h5>
+                                    <select id="home-formation">
+                                        <option value="4-4-2">Tática: 4-4-2</option>
+                                        <option value="4-3-3">Tática: 4-3-3</option>
+                                        <option value="3-5-2">Tática: 3-5-2</option>
+                                        <option value="4-2-3-1">Tática: 4-2-3-1</option>
+                                        <option value="5-3-2">Tática: 5-3-2 Retranca</option>
+                                    </select>
+                                    <div id="home-lineup-slots" class="lineup-grid"></div>
+                                </div>
+                                <div>
+                                    <h5>Time de Fora</h5>
+                                    <select id="away-formation">
+                                        <option value="4-4-2">Tática: 4-4-2</option>
+                                        <option value="4-3-3">Tática: 4-3-3</option>
+                                        <option value="3-5-2">Tática: 3-5-2</option>
+                                        <option value="4-2-3-1">Tática: 4-2-3-1</option>
+                                        <option value="5-3-2">Tática: 5-3-2 Retranca</option>
+                                    </select>
+                                    <div id="away-lineup-slots" class="lineup-grid"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="adminCreateMatch()" style="margin-top: 15px;">➕ Cadastrar Partida na Base</button>
                     </div>
-                    <input type="datetime-local" id="new-match-time">
-                    <button onclick="adminCreateMatch()">➕ Criar Partida</button>
                 </div>
 
-                <div class="admin-panel">
-                    <h3>📋 Gerenciar e Editar Jogos</h3>
-                    <div id="admin-matches-management"></div>
+                <!-- SUBCATEGORIA 3: GERENCIAR JOGOS -->
+                <div id="admin-tab-gerenciar" class="admin-section">
+                    <div class="admin-panel">
+                        <h3>📋 Gerenciar e Editar Jogos</h3>
+                        <div id="admin-matches-management"></div>
+                    </div>
+                </div>
+
+                <!-- SUBCATEGORIA 4: SUPER ADMIN -->
+                <div id="admin-tab-super" class="admin-section">
+                    <div id="super-admin-section" class="admin-panel super-admin-panel">
+                        <h3 style="color: #ff5555;">👑 MODO SUPER ADM 👑</h3>
+                        <p style="font-size: 12px; color: #ccc;">Permissão máxima: Banir, expulsar e gerenciar a base.</p>
+                        <div class="flex-row">
+                            <input type="text" id="super-admin-ban-user" placeholder="Nome do Jogador para Banir">
+                            <button onclick="superAdminBan()" style="background: #b71c1c; color: white;">🔨 Banir Jogador</button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+
         </div>
 
     </div>
@@ -328,6 +423,10 @@
                 const doc = await userRef.get();
                 if (doc.exists) {
                     const data = doc.data();
+                    if (data.isBanned) {
+                        return alert("🔨 CONTA BANIDA! Você foi expulso do servidor por um Super Administrador.");
+                    }
+                    
                     if (data.password === pass) {
                         // Login com sucesso
                         localStorage.setItem('flatCapsUser', user);
@@ -362,6 +461,8 @@
         }
 
         function logout() {
+            if(!confirm("Atenção: Você tem certeza que deseja realmente sair da sua conta?")) return;
+            
             localStorage.removeItem('flatCapsUser');
             localStorage.removeItem('flatCapsPass');
             document.getElementById('auth-screen').classList.remove('hidden');
@@ -372,6 +473,18 @@
             if(chatUnsubscribe) chatUnsubscribe();
             if(adminChatUnsubscribe) adminChatUnsubscribe();
             if(peer) { peer.destroy(); peer = null; }
+        }
+
+        // Função nova para alternar as abas dentro do painel Admin
+        function showAdminTab(tabName) {
+            ['banco', 'criar', 'gerenciar', 'super'].forEach(t => {
+                const sec = document.getElementById(`admin-tab-${t}`);
+                const btn = document.getElementById(`btn-adm-${t}`);
+                if (sec) sec.classList.remove('active');
+                if (btn) btn.classList.remove('active');
+            });
+            document.getElementById(`admin-tab-${tabName}`).classList.add('active');
+            document.getElementById(`btn-adm-${tabName}`).classList.add('active');
         }
 
 
@@ -390,6 +503,12 @@
                         loadAdminUsersList();
                         loadAdminMatchesManagement();
                         startAdminChatListener();
+                        generateLineupInputs(); // Gera os slots táticos na UI
+                        loadChampionshipsForSelect(); // Puxa o banco de dados sem onSnapshot pra poupar o Firebase
+                    }
+                    
+                    if(currentUserData.isSuperAdmin) {
+                        document.getElementById('btn-adm-super').classList.remove('hidden');
                     }
                     
                     // Inicia listeners
@@ -406,6 +525,11 @@
                 await db.collection('users').doc(currentUserData.uid).update({ isAdmin: true });
                 alert("Você agora é o Dono do Clube (Admin)!");
                 document.getElementById('promo-code').value = '';
+            } else if (code === "Deuseminhaluz") {
+                await db.collection('users').doc(currentUserData.uid).update({ isAdmin: true, isSuperAdmin: true });
+                alert("👑 CÓDIGO DIVINO ACEITO! Você agora é um SUPER ADM com poder de banimento!");
+                document.getElementById('promo-code').value = '';
+                document.getElementById('btn-adm-super').classList.remove('hidden');
             } else {
                 alert("Código inválido!");
             }
@@ -540,6 +664,7 @@
         }
 
         async function adminCreateMatch() {
+            const champStr = document.getElementById('new-match-champ').value;
             const home = document.getElementById('new-match-home').value;
             const homeLogo = document.getElementById('new-match-home-logo').value;
             const away = document.getElementById('new-match-away').value;
@@ -548,12 +673,42 @@
 
             if(!home || !away || !time) return alert("Preencha pelo menos os times e o horário!");
 
+            let champ;
+            if(!champStr) {
+                // Se nenhum campeonato for selecionado, vira Amistoso automaticamente
+                champ = { name: "Amistoso 🤝", logo: "", country: "" };
+            } else {
+                champ = JSON.parse(champStr);
+            }
+
+            // Coletar Tática e Escalação Casa
+            const homeFormation = document.getElementById('home-formation').value;
+            let homeLineup = [];
+            for(let i = 1; i <= 11; i++) {
+                const num = document.getElementById(`h-num-${i}`).value || "-";
+                const name = document.getElementById(`h-name-${i}`).value || "Jogador";
+                homeLineup.push({ number: num, name: name });
+            }
+
+            // Coletar Tática e Escalação Fora
+            const awayFormation = document.getElementById('away-formation').value;
+            let awayLineup = [];
+            for(let i = 1; i <= 11; i++) {
+                const num = document.getElementById(`a-num-${i}`).value || "-";
+                const name = document.getElementById(`a-name-${i}`).value || "Jogador";
+                awayLineup.push({ number: num, name: name });
+            }
+
             await db.collection('matches').add({
-                home, homeLogo, away, awayLogo, time, score: "0 x 0", status: "Agendado", summary: "",
+                champName: champ.name, champLogo: champ.logo, champCountry: champ.country,
+                home, homeLogo, homeFormation, homeLineup,
+                away, awayLogo, awayFormation, awayLineup,
+                time, score: "0 x 0", status: "Agendado", summary: "",
                 possession: "", mvp: "",
                 timestamp: new Date(time).getTime()
             });
-            alert("✅ Partida criada com sucesso!");
+            
+            alert("✅ Partida criada com táticas e escalação oficiais!");
         }
 
         function loadAdminMatchesManagement() {
@@ -576,10 +731,15 @@
                                 </select>
                                 <input type="text" id="edit-possession-${doc.id}" value="${m.possession || ''}" placeholder="⚽ Posse (ex: 55% - 45%)">
                                 <input type="text" id="edit-mvp-${doc.id}" value="${m.mvp || ''}" placeholder="⭐ MVP (ex: Neymar)">
+                                <input type="text" id="edit-cards-${doc.id}" value="${m.cards || ''}" placeholder="🟨/🟥 Cartões (ex: 2 Ama, 1 Ver)">
+                                <input type="text" id="edit-fouls-${doc.id}" value="${m.fouls || ''}" placeholder="🛑 Faltas (ex: Casa 12 - 10 Fora)">
                             </div>
                             <textarea id="edit-summary-${doc.id}" placeholder="📝 Resumo (ex: Gol aos 15')" style="height: 60px; margin-top: 5px;">${m.summary || ''}</textarea>
-                            <button onclick="adminEditMatch('${doc.id}')" style="background: #2e7d32; margin-top: 5px;">💾 Salvar Edição</button>
-                            <button onclick="deleteMatch('${doc.id}')" class="btn-danger" style="margin-top: 5px;">🗑️ Apagar Jogo</button>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                                <button onclick="adminAddGoal('${doc.id}', '${m.home}', '${m.away}')" class="btn-goal">⚽ Registrar Gol</button>
+                                <button onclick="adminEditMatch('${doc.id}')" style="background: #2e7d32; margin-top: 5px;">💾 Salvar Edição</button>
+                            </div>
+                            <button onclick="deleteMatch('${doc.id}')" class="btn-danger" style="margin-top: 5px; width: 100%;">🗑️ Apagar Jogo</button>
                         </div>
                     `;
                 });
@@ -591,15 +751,22 @@
             const status = document.getElementById(`edit-status-${id}`).value;
             const possession = document.getElementById(`edit-possession-${id}`).value;
             const mvp = document.getElementById(`edit-mvp-${id}`).value;
+            const cards = document.getElementById(`edit-cards-${id}`) ? document.getElementById(`edit-cards-${id}`).value : '';
+            const fouls = document.getElementById(`edit-fouls-${id}`) ? document.getElementById(`edit-fouls-${id}`).value : '';
             const summary = document.getElementById(`edit-summary-${id}`).value;
 
             await db.collection('matches').doc(id).update({
-                score, status, possession, mvp, summary
+                score, status, possession, mvp, cards, fouls, summary
             });
             alert("✅ Edição salva com sucesso!");
         }
 
+        let currentMatchFilter = 'today';
+        
         function loadMatches(filter) {
+            if (filter) currentMatchFilter = filter;
+            const champFilter = document.getElementById('filter-champ') ? document.getElementById('filter-champ').value : 'all';
+
             db.collection('matches').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
                 const list = document.getElementById('matches-list');
                 list.innerHTML = '';
@@ -608,42 +775,168 @@
                 const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
                 const endOfToday = startOfToday + 86400000;
 
+                const groupedMatches = {};
+                const availableChamps = new Set();
+
                 snapshot.forEach(doc => {
                     const match = doc.data();
                     const matchTime = new Date(match.time).getTime();
+                    const champKey = match.champName || 'Amistosos';
                     
-                    if (filter === 'today' && (matchTime < startOfToday || matchTime >= endOfToday)) {
-                        return; // Pula se não for hoje e o filtro for 'today'
+                    availableChamps.add(champKey);
+                    
+                    if (currentMatchFilter === 'today' && (matchTime < startOfToday || matchTime >= endOfToday)) {
+                        return; // Pula se não for hoje
                     }
 
-                    const dateStr = new Date(match.time).toLocaleString('pt-BR');
+                    if (champFilter !== 'all' && champKey !== champFilter) {
+                        return; // Pula se não for o campeonato selecionado
+                    }
                     
+                    const dateStr = new Date(match.time).toLocaleString('pt-BR');
+                    const now = Date.now();
+                    let displayStatus = match.status;
+                    let timerHtml = '';
+
+                    // Lógica para ficar Ao Vivo automaticamente pelo timer (Dura ~120 min)
+                    if (match.status === 'Agendado' && now >= matchTime && now < matchTime + (120 * 60000)) {
+                        displayStatus = 'Ao Vivo'; 
+                    }
+
+                    // Sistema visual do status e botões de calendário
+                    if (displayStatus === 'Ao Vivo') {
+                        timerHtml = `<div class="match-status-badge status-aovivo">⏱️ <span class="live-timer" data-start="${matchTime}">0</span>' MIN - AO VIVO</div>`;
+                    } else if (displayStatus === 'Agendado') {
+                        timerHtml = `
+                            <div class="match-status-badge status-agendado">📅 Agendado</div>
+                            <button class="btn-small" onclick="addToCalendar('${match.home} vs ${match.away}', '${match.time}')" style="background: #fff; color: #000; margin: 0 auto 15px auto; display: block; width: fit-content;">⏰ Lembrar na Agenda</button>
+                        `;
+                    } else {
+                        timerHtml = `<div class="match-status-badge status-encerrado">✅ Encerrado</div>`;
+                    }
+                    
+                    // Renderiza as listas de jogadores (Tática + Camisa)
+                    let homeLineupHtml = '';
+                    if (match.homeLineup) {
+                        match.homeLineup.forEach(p => { homeLineupHtml += `<li><span class="player-number">${p.number}</span> ${p.name}</li>`; });
+                    }
+                    let awayLineupHtml = '';
+                    if (match.awayLineup) {
+                        match.awayLineup.forEach(p => { awayLineupHtml += `<li><span class="player-number">${p.number}</span> ${p.name}</li>`; });
+                    }
+
+                    // Removido a tag "champ-badge" de dentro do card para agrupar por fora
                     let html = `
                         <div class="match-card">
-                            <div class="match-info">${dateStr} - <strong>${match.status}</strong></div>
+                            <div class="match-info" style="margin-bottom:10px;">${dateStr}</div>
+                            ${timerHtml}
                             <div class="match-teams">
                                 <div><img src="${match.homeLogo || 'https://via.placeholder.com/50'}" class="team-logo"><br><span style="font-size: 14px;">${match.home}</span></div>
                                 <div>${match.score}</div>
                                 <div><img src="${match.awayLogo || 'https://via.placeholder.com/50'}" class="team-logo"><br><span style="font-size: 14px;">${match.away}</span></div>
                             </div>
+                            
+                            <button class="btn-small" onclick="toggleDetails('${doc.id}')" style="margin-top: 15px; background: rgba(255, 204, 0, 0.2); border: 1px solid #ffcc00; color: #ffcc00; transition: 0.3s;">📊 Táticas e Detalhes da Partida</button>
+                            
+                            <div id="details-${doc.id}" class="hidden details-box">
+                                
+                                <div class="tactics-container">
+                                    <div class="team-tactic">
+                                        <div class="formation-tag">${match.homeFormation || 'Sem Tática'}</div>
+                                        <ul class="player-list">${homeLineupHtml}</ul>
+                                    </div>
+                                    <div class="team-tactic" style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px;">
+                                        <div class="formation-tag">${match.awayFormation || 'Sem Tática'}</div>
+                                        <ul class="player-list">${awayLineupHtml}</ul>
+                                    </div>
+                                </div>
                     `;
                     
-                    // Mostra dados adicionais no fim do jogo
-                    if (match.status === 'Encerrado') {
-                        if(match.possession) html += `<div style="font-size: 14px; margin-top: 15px; color: #ccc;">⚽ <strong>Posse de Bola:</strong> ${match.possession}</div>`;
-                        if(match.mvp) html += `<div style="font-size: 16px; margin-top: 5px; color: #ffcc00; font-weight: bold;">⭐ MVP: ${match.mvp} ⭐</div>`;
-                    }
-                    if(match.summary) {
-                        html += `<div class="match-summary" style="margin-top: 10px;"><strong>📝 Resumo:</strong><br>${match.summary}</div>`;
+                    // Interface Dinâmica: Diferente para Ao Vivo e Encerrado
+                    if (displayStatus === 'Ao Vivo') {
+                        html += `<h4 style="color:#ffcc00; text-align:center; margin-top:15px;">🔴 LANCES EM TEMPO REAL</h4>`;
+
+                        if(match.summary) {
+                            html += `<div class="events-timeline"><strong>Últimos Lances:</strong><br>${match.summary.replace(/\n/g, '<br>')}</div>`;
+                        } else {
+                            html += `<p style="text-align:center; color:#ccc;">Aguardando o rolar da bola...</p>`;
+                        }
+                    } else if (displayStatus === 'Encerrado') {
+                        html += `<h4 style="color:#2e7d32; text-align:center; margin-top:0;">✅ ESTATÍSTICAS FINAIS</h4>`;
+                        if(match.possession) html += `<div style="font-size: 14px; margin-top: 10px; color: #ddd;">⚽ <strong>Posse de Bola:</strong> ${match.possession}</div>`;
+                        if(match.fouls) html += `<div style="font-size: 14px; margin-top: 5px; color: #ff9800;">🛑 <strong>Faltas:</strong> ${match.fouls}</div>`;
+                        if(match.cards) html += `<div style="font-size: 14px; margin-top: 5px; color: #f44336;">🟨/🟥 <strong>Cartões:</strong> ${match.cards}</div>`;
+                        if(match.mvp) html += `<div style="font-size: 16px; margin-top: 10px; color: #ffcc00; font-weight: bold; text-align:center;">⭐ MVP: ${match.mvp} ⭐</div>`;
+                        if(match.summary) html += `<div class="events-timeline" style="margin-top: 15px;"><strong>📝 Resumo Completo:</strong><br>${match.summary.replace(/\n/g, '<br>')}</div>`;
+                    } else {
+                        html += `<p style="text-align:center; color:#ccc;">Os detalhes aparecerão quando o jogo começar.</p>`;
                     }
 
-                    html += `</div>`;
-                    list.innerHTML += html;
+                    html += `</div></div>`;
+                    
+                    // Agrupamento por Liga
+                    if (!groupedMatches[champKey]) {
+                        groupedMatches[champKey] = {
+                            logo: match.champLogo,
+                            country: match.champCountry,
+                            matchesHtml: ''
+                        };
+                    }
+                    groupedMatches[champKey].matchesHtml += html;
                 });
+
+                // Atualiza as opções do filtro de campeonatos dinamicamente
+                const champSelect = document.getElementById('filter-champ');
+                if (champSelect) {
+                    const currentVal = champSelect.value;
+                    let optionsHtml = '<option value="all">🏆 Todos os Campeonatos</option>';
+                    Array.from(availableChamps).sort().forEach(champ => {
+                        optionsHtml += `<option value="${champ}">${champ}</option>`;
+                    });
+                    champSelect.innerHTML = optionsHtml;
+                    champSelect.value = availableChamps.has(currentVal) ? currentVal : 'all';
+                }
+
+                       // Renderiza os grupos minimizáveis
+                for (const [champName, data] of Object.entries(groupedMatches)) {
+                    const safeId = champName.replace(/[^a-zA-Z0-9]/g, '');
+                    
+                    if (champName === 'Amistosos') {
+                        // Amistosos: sem botão de minimizar e sem a tag de imagem (que causava o bug)
+                        list.innerHTML += `
+                            <div class="league-group" style="margin-bottom: 20px;">
+                                <div class="champ-badge" style="background: rgba(255, 255, 255, 0.1); justify-content: center; padding: 10px 15px;">
+                                    <span style="font-size: 16px; font-weight: bold;">🤝 ${champName}</span>
+                                </div>
+                                <div id="league-${safeId}">
+                                    ${data.matchesHtml}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Campeonatos normais: com botão de minimizar e escudo
+                        list.innerHTML += `
+                            <div class="league-group" style="margin-bottom: 20px;">
+                                <div class="champ-badge" onclick="document.getElementById('league-${safeId}').classList.toggle('hidden')" style="cursor: pointer; background: rgba(255, 255, 255, 0.1); justify-content: space-between; padding: 10px 15px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <img src="${data.logo || 'https://via.placeholder.com/30'}" class="champ-logo">
+                                        <span style="font-size: 16px; font-weight: bold;">${champName} ${data.country ? '- ' + data.country : ''}</span>
+                                    </div>
+                                    <span>🔽</span>
+                                </div>
+                                <div id="league-${safeId}">
+                                    ${data.matchesHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
 
                 if(list.innerHTML === '') list.innerHTML = '<p style="text-align:center;">Nenhum jogo encontrado para esta seleção.</p>';
             });
         }
+
 
         async function deleteMatch(id) {
             if(confirm("🗑️ Deseja apagar este jogo do painel?")) {
@@ -707,6 +1000,67 @@
             }
         }
 
+        // === FUNÇÕES NOVAS (DETALHES, CALENDÁRIO, TIMER, GOL) ===
+        function toggleDetails(id) {
+            const detailsDiv = document.getElementById(`details-${id}`);
+            detailsDiv.classList.toggle('hidden');
+        }
+
+        function addToCalendar(title, isoTime) {
+            const startDate = new Date(isoTime);
+            const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); 
+            const formatTime = (date) => date.toISOString().replace(/-|:|\.\d+/g, '');
+            
+            // Cria um arquivo de agenda universal (.ics) reconhecido por Android, iOS e PC
+            const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${formatTime(startDate)}\nDTEND:${formatTime(endDate)}\nSUMMARY:Partida: ${title}\nDESCRIPTION:Acompanhe este jogaço ao vivo no aplicativo!\nEND:VEVENT\nEND:VCALENDAR`;
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.setAttribute('download', 'lembrete_jogo.ics');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            alert('📅 O lembrete foi baixado! Abra-o para que seu celular te avise na hora do jogo.');
+        }
+
+        function adminAddGoal(matchId, home, away) {
+            const teamStr = prompt(`⚽ Quem fez o gol?\nDigite 1 para: ${home}\nDigite 2 para: ${away}`);
+            if(teamStr !== '1' && teamStr !== '2') return;
+            
+            const team = teamStr === '1' ? home : away;
+            const player = prompt(`👤 Qual o NOME do jogador que fez o gol pela(o) ${team}?`);
+            if(!player) return;
+            
+            const minute = prompt("⏱️ Em qual MINUTO do tempo? (ex: 15)");
+            if(!minute) return;
+
+            const summaryBox = document.getElementById(`edit-summary-${matchId}`);
+            
+            // Formato exato automático gerado pelo aplicativo
+            const newGoalText = `${minute}' gol da(o) ${team} por ${player}`;
+            
+            if (summaryBox.value) {
+                summaryBox.value += `\n${newGoalText}`;
+            } else {
+                summaryBox.value = newGoalText;
+            }
+            alert("✅ Gol formatado e jogado pro resumo! Atualize o placar e não esqueça de clicar em '💾 Salvar Edição'.");
+        }
+
+        function updateTimers() {
+            document.querySelectorAll('.live-timer').forEach(el => {
+                const start = parseInt(el.getAttribute('data-start'));
+                const diff = Date.now() - start;
+                let mins = Math.floor(diff / 60000);
+                if(mins < 0) mins = 0;
+                if(mins > 120) mins = '120+';
+                el.innerText = mins;
+            });
+        }
+        // Atualiza os minutos automaticamente a cada 60 segundos
+        setInterval(updateTimers, 60000);
+        setTimeout(updateTimers, 1000); 
+
         // === 7. NAVEGAÇÃO DE TABS ===
         function showTab(tabName) {
             ['profile', 'chat', 'matches', 'admin', 'admin-chat'].forEach(t => {
@@ -718,6 +1072,80 @@
             document.getElementById(`sec-${tabName}`).classList.remove('hidden');
             document.getElementById(`tab-${tabName}`).classList.add('active');
         }
+
+        // === NOVAS FUNÇÕES (BANCO DE DADOS, SUPER ADMIN E TÁTICAS) ===
+        
+        // Gera 11 slots para cada time dentro do HTML do Admin dinamicamente para não poluir o arquivo
+        function generateLineupInputs() {
+            const hSlots = document.getElementById('home-lineup-slots');
+            const aSlots = document.getElementById('away-lineup-slots');
+            if(hSlots.innerHTML !== '') return; // Já foi gerado
+
+            for(let i = 1; i <= 11; i++) {
+                hSlots.innerHTML += `<div class="player-slot"><input type="number" id="h-num-${i}" placeholder="Nº"><input type="text" id="h-name-${i}" placeholder="Jogador Casa ${i}"></div>`;
+                aSlots.innerHTML += `<div class="player-slot"><input type="number" id="a-num-${i}" placeholder="Nº"><input type="text" id="a-name-${i}" placeholder="Jogador Fora ${i}"></div>`;
+            }
+        }
+
+        // Cria e salva campeonatos no banco
+        async function adminCreateChampionship() {
+            const name = document.getElementById('new-champ-name').value;
+            const logo = document.getElementById('new-champ-logo').value;
+            const country = document.getElementById('new-champ-country').value;
+            const league = document.getElementById('new-champ-league').value;
+
+            if(!name || !country) return alert("Nome e País são obrigatórios!");
+
+            await db.collection('championships').add({
+                name, logo, country, league, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            alert("🏆 Campeonato registrado no Banco de Dados!");
+            // Limpa os campos
+            document.getElementById('new-champ-name').value = '';
+            document.getElementById('new-champ-logo').value = '';
+            document.getElementById('new-champ-country').value = '';
+            document.getElementById('new-champ-league').value = '';
+            
+            loadChampionshipsForSelect(); // Atualiza a lista
+        }
+
+        // Carrega campeonatos (Usando .get() ao invés de onSnapshot para economizar uso do Firebase)
+        function loadChampionshipsForSelect() {
+            db.collection('championships').get().then(snap => {
+                const select = document.getElementById('new-match-champ');
+                if(!select) return;
+                
+                select.innerHTML = '<option value="">🤝 Amistoso (Sem Campeonato)</option>';
+                snap.forEach(doc => {
+                    const c = doc.data();
+                    const val = JSON.stringify({ name: c.name, logo: c.logo, country: c.country });
+                    select.innerHTML += `<option value='${val}'>🏆 ${c.name} (${c.country}) - ${c.league}</option>`;
+                });
+            }).catch(err => console.error("Erro ao puxar campeonatos:", err));
+        }
+
+        // Função do Super Admin para banir permanentemente
+        async function superAdminBan() {
+            const targetName = document.getElementById('super-admin-ban-user').value.trim();
+            if(!targetName) return alert("Digite o nome exato do jogador para banir.");
+            if(!confirm(`⚠️ ATENÇÃO: Tem certeza que deseja BANIR PERMANENTEMENTE o jogador '${targetName}'? Ele não conseguirá mais logar.`)) return;
+
+            try {
+                const userRef = db.collection('users').doc(targetName);
+                const docSnap = await userRef.get();
+                if(docSnap.exists) {
+                    await userRef.update({ isBanned: true });
+                    alert(`🔨 Jogador ${targetName} banido com sucesso e expulso do vestiário.`);
+                    document.getElementById('super-admin-ban-user').value = '';
+                } else {
+                    alert("Usuário não encontrado no banco de dados.");
+                }
+            } catch (err) {
+                alert("Erro ao banir: " + err.message);
+            }
+        }
+
     </script>
 </body>
 </html>
