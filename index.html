@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flat Caps - Futebol Web</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <style>
+             /* TEMA FUTEBOL REFEITO */
+        :root {
+            --pitch-green: #1b5e20;
+        }
+        
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--pitch-green);
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='120'%3E%3Ctext x='20' y='60' font-size='35'%3E⚽%3C/text%3E%3C/svg%3E");
+            background-repeat: repeat;
+            color: white;
+            min-height: 100vh;
+            overscroll-behavior-y: contain;
+        }
+
+        body.login-lock {
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100vw;
+            margin: 0 auto;
+            padding: 10px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+        #app-screen { width: 100%; max-width: 800px; }
+        
+        /* Ajustes específicos para Mobile */
+        .nav-bar { flex-wrap: wrap; justify-content: space-between; }
+        .nav-bar button { flex: 1 1 45%; font-size: 13px; padding: 10px 5px; }
+        .match-teams { font-size: 18px; gap: 10px; }
+        .team-logo { width: 40px; height: 40px; }
+        input, button, textarea { font-size: 16px; /* Evita zoom automático no iOS */ }
+
+        .card {
+            background: rgba(0, 0, 0, 0.75);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid var(--line-white);
+            margin-bottom: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        h1, h2, h3 { text-align: center; margin-top: 0; text-transform: uppercase; font-style: italic; }
+
+        input, button, textarea {
+            width: 100%; padding: 12px; margin: 8px 0;
+            border-radius: 5px; border: none; box-sizing: border-box;
+            font-size: 16px;
+        }
+        input, textarea { background: rgba(255,255,255,0.9); }
+        button {
+            background: #ffcc00; color: #000; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; transition: 0.2s;
+        }
+        button:hover { background: #e6b800; transform: scale(1.02); }
+        
+        .btn-small { width: auto; padding: 5px 10px; font-size: 12px; }
+        .btn-danger { background: #d32f2f; color: white; }
+        .btn-danger:hover { background: #b71c1c; }
+
+        .hidden { display: none !important; }
+        
+        /* Navegação */
+        .nav-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav-bar button { background: #333; color: white; }
+        .nav-bar button.active { background: #ffcc00; color: black; }
+
+        /* Chat */
+        .chat-box { height: 350px; overflow-y: auto; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 5px; margin-bottom: 10px;}
+        .msg { margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; }
+        .msg.admin { border-left: 5px solid #ffcc00; background: rgba(255, 204, 0, 0.15); }
+        .msg-header { display: flex; justify-content: space-between; font-size: 12px; color: #ccc; margin-bottom: 5px; }
+        .msg-admin-tag { color: #ffcc00; font-weight: bold; }
+        .admin-controls { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 5px; }
+
+        /* Jogos e Eventos (Design Premium) */
+        .match-card {
+            background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(30,30,30,0.9));
+            padding: 20px; border-radius: 12px; margin-bottom: 20px;
+            display: flex; flex-direction: column; text-align: center; 
+            border: 1px solid rgba(255, 204, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .match-status-badge {
+            display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold;
+            text-transform: uppercase; margin: 0 auto 15px auto; letter-spacing: 1px;
+        }
+        .status-agendado { background: #555; color: white; }
+        .status-aovivo { background: #d32f2f; color: white; animation: pulse 2s infinite; }
+        .status-intervalo { background: #ffcc00; color: black; }
+        .status-encerrado { background: #2e7d32; color: white; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); } 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); } }
+
+        .match-teams { display: flex; justify-content: center; align-items: center; gap: 15px; font-size: 28px; font-weight: 900; }
+        .team-block { display: flex; flex-direction: column; align-items: center; width: 100px; }
+        .team-logo { width: 60px; height: 60px; object-fit: contain; background: rgba(255,255,255,0.9); border-radius: 50%; padding: 5px; border: 2px solid #ffcc00; margin-bottom: 8px;}
+        .team-name { font-size: 14px; font-weight: bold; word-break: break-word; line-height: 1.1; }
+        .match-score { font-size: 36px; padding: 0 15px; background: rgba(255,255,255,0.1); border-radius: 10px; font-family: monospace; }
+        
+        .events-timeline { margin-top: 20px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; text-align: left; border-left: 3px solid #ffcc00; }
+        .event-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 14px; }
+        .event-item:last-child { border-bottom: none; }
+        .event-min { font-weight: bold; color: #ffcc00; min-width: 35px; }
+
+        /* Painel Admin */
+        .admin-panel { border: 1px solid #ffcc00; padding: 15px; border-radius: 8px; margin-bottom: 20px; background: rgba(255, 204, 0, 0.05); }
+        select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; border: none; font-size: 16px; background: rgba(255,255,255,0.9); }
+        .admin-match-controls { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffcc00; }
+        .admin-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .flex-row { display: flex; gap: 10px; align-items: center; }
+    </style>
+</head>
+<body class="login-lock">
+    <div class="container">
+        <div id="auth-screen" class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: auto; max-width: 400px; width: 100%; box-sizing: border-box;">
+            <h1 style="font-size: 2.5em; color: #ffcc00; text-shadow: 2px 2px 4px #000;">⚽ Flat Caps ⚽</h1>
+            <div id="login-form" style="width: 100%;">
+                <h2>🚪 Entrar no Vestiário</h2>
+                <input type="text" id="login-user" placeholder="👤 Nome de Jogador">
+                <input type="password" id="login-pass" placeholder="🔑 Senha">
+                <button onclick="login()">Entrar no Jogo 🚀</button>
+                <p style="text-align: center; font-size: 12px; color: #ccc;">Escolha um nome limpo e sem ofensas!</p>
+            </div>
+        </div>
+
+
+              <div id="app-screen" class="hidden">
+            <div class="nav-bar">
+                <button id="tab-profile" class="active" onclick="showTab('profile')">Vestiário</button>
+                <button id="tab-chat" onclick="showTab('chat')">Resenha</button>
+                <button id="tab-matches" onclick="showTab('matches')">Jogos</button>
+                <button id="tab-admin" class="hidden" onclick="showTab('admin')" style="background: #1b5e20; border: 1px solid #ffcc00;">Admin</button>
+                <button id="tab-admin-chat" class="hidden" onclick="showTab('admin-chat')" style="background: #d32f2f; border: 1px solid #fff;">Chat Admin</button>
+                <button class="btn-danger" onclick="logout()">Sair</button>
+            </div>
+
+            <div id="sec-profile" class="card">
+                <h2>Seu Perfil</h2>
+                <p><strong>Jogador:</strong> <span id="lbl-user"></span></p>
+                <h3 style="color: #ffcc00; font-size: 28px;">Saldo: <span id="lbl-balance">0.00</span> FC$</h3>
+                <div style="margin-top: 30px; border-top: 1px solid #555; padding-top: 20px;">
+                    <h4>Resgatar Código</h4>
+                    <input type="text" id="promo-code" placeholder="Insira o código aqui">
+                    <button onclick="redeemCode()">Resgatar</button>
+                </div>
+            </div>
+
+            <div id="sec-chat" class="card hidden">
+                <h2>Resenha da Torcida 📣</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; align-items: center;">
+                    <p style="margin: 0; font-size: 14px; width: 100%;">Seu ID: <strong id="my-peer-id" style="color:#ffcc00">Carregando...</strong></p>
+                    <input type="text" id="call-id-input" placeholder="ID do amigo" style="flex: 1; margin: 0; min-width: 120px;">
+                    <button class="btn-small" onclick="makeCall()" style="background: #2e7d32; color: white;">📞 Ligar</button>
+                    <button class="btn-small btn-danger" onclick="endCall()">Desligar</button>
+                </div>
+                <audio id="remote-audio" autoplay></audio>
+                
+                <div class="chat-box" id="chat-messages" style="height: 250px;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chat-input" placeholder="Digite sua mensagem..." onkeypress="if(event.key === 'Enter') sendMessage('chat')">
+                    <button onclick="sendMessage('chat')" style="width: 100px;">Enviar</button>
+                </div>
+            </div>
+            
+            <div id="sec-admin-chat" class="card hidden" style="border-color: #d32f2f; background: rgba(50, 0, 0, 0.8);">
+                <h2 style="color: #ff5555;">Resenha VIP (Admin) 👑</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; align-items: center;">
+                    <input type="text" id="admin-call-id-input" placeholder="ID do Admin" style="flex: 1; margin: 0; min-width: 120px;">
+                    <button class="btn-small" onclick="makeAdminCall()" style="background: #d32f2f; color: white;">📞 Ligar Admin</button>
+                    <button class="btn-small" onclick="endCall()" style="background: #555; color: white;">Desligar</button>
+                </div>
+                <div class="chat-box" id="admin-chat-messages" style="height: 200px; background: rgba(255, 0, 0, 0.05);"></div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="admin-chat-input" placeholder="Mensagem secreta..." onkeypress="if(event.key === 'Enter') sendMessage('admin-chat')">
+                    <button onclick="sendMessage('admin-chat')" style="width: 100px; background: #d32f2f; color: white;">Enviar</button>
+                </div>
+            </div>
+
+            <div id="sec-matches" class="card hidden">
+                <h2>Painel de Jogos</h2>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <button class="btn-small" onclick="loadMatches('today')">Apenas Hoje</button>
+                    <button class="btn-small" onclick="loadMatches('all')">Todos os Jogos</button>
+                </div>
+                <div id="matches-list"></div>
+            </div>
+
+            <div id="sec-admin" class="card hidden">
+                <h2>Administração do Clube</h2>
+                
+                <div class="admin-panel">
+                    <h3>💸 Transferência de FC$</h3>
+                    <select id="admin-user-select"><option>Carregando jogadores...</option></select>
+                    <div class="flex-row">
+                        <input type="number" id="admin-money-amount" placeholder="Valor (Ex: 50)">
+                        <button onclick="adminTransferMoney(true)" style="background: #2e7d32; color: white;">Dar</button>
+                        <button onclick="adminTransferMoney(false)" class="btn-danger">Tirar</button>
+                    </div>
+                </div>
+
+                <div class="admin-panel" style="background: rgba(0, 200, 255, 0.1); border-color: #00c8ff;">
+                    <h3>📖 Mini Tutorial do Admin</h3>
+                    <ul style="text-align: left; font-size: 14px; color: #ddd; padding-left: 20px;">
+                        <li><strong>Criar Jogos:</strong> Digite os dados no quadro "Criar Novo Jogo" e clique no botão para criar.</li>
+                        <li><strong>Editar Jogos:</strong> Vá em "Gerenciar e Editar", altere o placar ou o status no jogo desejado. <strong>Só edite aqui!</strong></li>
+                        <li><strong>Fim de Jogo:</strong> Mude o status para "Encerrado", adicione a <strong>Posse de Bola</strong> e escolha o <strong>MVP ⭐</strong>.</li>
+                        <li><strong>Salvar:</strong> Tudo que você alterar exige um clique em "💾 Salvar Edição" para aparecer pros jogadores!</li>
+                    </ul>
+                </div>
+
+                <div class="admin-panel">
+                    <h3>🏟️ Criar Novo Jogo</h3>
+                    <div class="admin-controls-grid">
+                        <input type="text" id="new-match-home" placeholder="🏠 Nome Time Casa">
+                        <input type="text" id="new-match-away" placeholder="✈️ Nome Time Fora">
+                        <input type="text" id="new-match-home-logo" placeholder="🖼️ URL Escudo Casa">
+                        <input type="text" id="new-match-away-logo" placeholder="🖼️ URL Escudo Fora">
+                    </div>
+                    <input type="datetime-local" id="new-match-time">
+                    <button onclick="adminCreateMatch()">➕ Criar Partida</button>
+                </div>
+
+                <div class="admin-panel">
+                    <h3>📋 Gerenciar e Editar Jogos</h3>
+                    <div id="admin-matches-management"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // === 1. CONFIGURAÇÃO DO FIREBASE ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxnSJSTHuEnmzMZj-z-1YiTEo8cLLGbKk",
+            authDomain: "star-super-v2.firebaseapp.com",
+            projectId: "star-super-v2",
+            storageBucket: "star-super-v2.firebasestorage.app",
+            messagingSenderId: "279120272242",
+            appId: "1:279120272242:web:c93061cbc8ca26c21b5beb",
+            measurementId: "G-032NH18WM3"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Variáveis globais
+        let currentUserData = null;
+        let chatUnsubscribe = null;
+        let adminChatUnsubscribe = null;
+        let peer = null;
+        let currentCall = null;
+
+        // === 2. AUTENTICAÇÃO ===
+        // Monitoramento nativo removido: o login agora é feito direto pelo Firestore.
+        window.onload = function() {
+            const savedUser = localStorage.getItem('flatCapsUser');
+            const savedPass = localStorage.getItem('flatCapsPass');
+            if (savedUser && savedPass) {
+                document.getElementById('login-user').value = savedUser;
+                document.getElementById('login-pass').value = savedPass;
+                login(); // Entra automático!
+            }
+        };
+
+             // Filtro com mais de 120 variações de palavras bloqueadas (xingamentos, l33t speak, termos de admin)
+        const blockedNames = [
+            "admin", "4dmin", "adm1n", "4dm1n", "@dmin", "a-d-m-i-n", "administrador", "4dm1n1str4d0r",
+            "dono", "d0no", "don0", "d0n0", "mod", "m0d", "moderador", "m0d3r4d0r",
+            "lixo", "l1xo", "lix0", "l1x0", "lixoso", "l1xos0",
+            "bobo", "b0bo", "bob0", "b0b0", "feio", "f3io", "fe1o", "f31o", "f3i0", "fei0",
+            "chato", "ch4to", "chat0", "ch4t0", "burro", "burr0", "bvrro",
+            "idiota", "1diota", "id1ota", "idi0ta", "idiot4", "1d10t4", "1diot4", "idi0t4", "1d1ota",
+            "imbecil", "1mbecil", "imb3cil", "imbec1l", "1mb3c1l",
+            "trouxa", "tr0uxa", "troux4", "tr0ux4",
+            "otario", "0tario", "ot4rio", "otar1o", "0t4r10", "otari0",
+            "noob", "n0ob", "no0b", "n00b", "nub", "hacker", "h4cker", "hack3r", "h4ck3r", "hakcer",
+            "bot", "b0t", "b-o-t", "fake", "f4ke", "fak3", "f4k3", "spam", "sp4m", "s-p-a-m", "scam", "sc4m",
+            "teste", "t3ste", "test3", "t3st3", "root", "r0ot", "ro0t", "r00t", "system", "syst3m", "s1stem",
+            "trapaceiro", "tr4p4c31r0", "cheat", "ch34t", "cheater", "ch34t3r",
+            "aimbot", "41mb0t", "wallhack", "w4llh4ck",
+            "besta", "b3st4", "lerdo", "l3rd0", "tonto", "t0nt0", "inutil", "1nutil", "1nut1l",
+            "perdedor", "p3rd3d0r", "ruim", "ru1m", "fedido", "f3d1d0", "nojento", "n0j3nt0",
+            "safado", "s4f4d0", "caloteiro", "c4l0t31r0",
+            "preguicoso", "pr3gu1c0s0", "covarde", "c0v4rd3", "choron", "ch0r0n", "lagado", "l4g4d0",
+            "idiotice", "1d10t1c3", "palavrao", "p4l4vr40", "xingamento", "x1ng4m3nt0"
+        ];
+
+        function hasProfanity(name) {
+            // Remove espaços e caracteres especiais para checar a "raiz" da palavra
+            const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return blockedNames.some(bad => normalized.includes(bad.replace(/[^a-z0-9]/g, '')));
+        }
+
+             async function login() {
+            const user = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+            
+            if(!user || !pass) return alert("Craque, digite um nome de jogador e uma senha!");
+            if(user.length < 3 || user.length > 15) return alert("O nome deve ter entre 3 e 15 letras.");
+            if(hasProfanity(user)) return alert("Cartão Vermelho! 🟥 Esse nome contém palavras bloqueadas ou restritas. Escolha outro.");
+
+            try {
+                // Usa o próprio nome do usuário como ID do documento no Firestore
+                const userRef = db.collection('users').doc(user);
+                const doc = await userRef.get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.password === pass) {
+                        // Login com sucesso
+                        localStorage.setItem('flatCapsUser', user);
+                                                localStorage.setItem('flatCapsPass', pass);
+                        document.getElementById('auth-screen').classList.add('hidden');
+                        document.getElementById('app-screen').classList.remove('hidden');
+                        document.body.classList.remove('login-lock');
+                        loadUserData(user);
+                    } else {
+                        alert("Senha incorreta!");
+                    }
+                } else {
+                    // Se não existe, cria a conta no Firestore
+                    await userRef.set({
+                        username: user,
+                        password: pass,
+                        balance: 0.00,
+                        isAdmin: false,
+                        uid: user
+                    });
+                    localStorage.setItem('flatCapsUser', user);
+                    localStorage.setItem('flatCapsPass', pass);
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app-screen').classList.remove('hidden');
+                    document.body.classList.remove('login-lock');
+                    loadUserData(user);
+
+                }
+            } catch (error) {
+                alert("Erro ao entrar: " + error.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('flatCapsUser');
+            localStorage.removeItem('flatCapsPass');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('login-pass').value = ''; 
+            document.body.classList.add('login-lock');
+            currentUserData = null;
+            if(chatUnsubscribe) chatUnsubscribe();
+            if(adminChatUnsubscribe) adminChatUnsubscribe();
+            if(peer) { peer.destroy(); peer = null; }
+        }
+
+
+
+        // === 3. PERFIL E ADMIN ===
+        function loadUserData(uid) {
+            db.collection('users').doc(uid).onSnapshot(doc => {
+                if (doc.exists) {
+                    currentUserData = doc.data();
+                    document.getElementById('lbl-user').innerText = currentUserData.username;
+                    document.getElementById('lbl-balance').innerText = parseFloat(currentUserData.balance).toFixed(2);
+                    
+                    if(currentUserData.isAdmin) {
+                        document.getElementById('tab-admin').classList.remove('hidden');
+                        document.getElementById('tab-admin-chat').classList.remove('hidden');
+                        loadAdminUsersList();
+                        loadAdminMatchesManagement();
+                        startAdminChatListener();
+                    }
+                    
+                    // Inicia listeners
+                    startChatListener();
+                    loadMatches('today');
+                    initPeer();
+                }
+            });
+        }
+
+        async function redeemCode() {
+            const code = document.getElementById('promo-code').value;
+            if (code === "19052010") {
+                await db.collection('users').doc(currentUserData.uid).update({ isAdmin: true });
+                alert("Você agora é o Dono do Clube (Admin)!");
+                document.getElementById('promo-code').value = '';
+            } else {
+                alert("Código inválido!");
+            }
+        }
+
+               // === 4. CHAT ===
+        async function sendMessage(collection = 'chat') {
+            const inputId = collection === 'chat' ? 'chat-input' : 'admin-chat-input';
+            const input = document.getElementById(inputId);
+            const text = input.value.trim();
+            if(!text) return;
+
+            input.value = '';
+            await db.collection(collection).add({
+                text: text,
+                author: currentUserData.username,
+                authorId: currentUserData.uid,
+                isAdmin: currentUserData.isAdmin,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            cleanupOldMessages(collection, collection === 'chat' ? 20 : 10);
+        }
+
+        async function cleanupOldMessages(collection, limit) {
+            const snapshot = await db.collection(collection).orderBy('timestamp', 'desc').get();
+            if (snapshot.size > limit) {
+                let count = 0;
+                snapshot.forEach(doc => {
+                    count++;
+                    if (count > limit) { db.collection(collection).doc(doc.id).delete(); }
+                });
+            }
+        }
+
+
+        function startChatListener() {
+            if(chatUnsubscribe) chatUnsubscribe();
+            chatUnsubscribe = db.collection('chat')
+                .orderBy('timestamp', 'desc')
+                .limit(20)
+                .onSnapshot(snapshot => {
+                    const box = document.getElementById('chat-messages');
+                    box.innerHTML = '';
+                    const msgs = [];
+                    snapshot.forEach(doc => { msgs.push({id: doc.id, ...doc.data()}); });
+                    
+                    // Inverte para mostrar as mais novas embaixo
+                    msgs.reverse().forEach(msg => {
+                        const date = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString() : '';
+                        let html = `
+                            <div class="msg ${msg.isAdmin ? 'admin' : ''}">
+                                <div class="msg-header">
+                                    <span>${msg.isAdmin ? '👑 <span class="msg-admin-tag">ADMIN</span>' : ''} ${msg.author}</span>
+                                    <span>${date}</span>
+                                </div>
+                                <div>${msg.text}</div>
+                        `;
+                        
+                        // Painel Admin para dar/tirar dinheiro no chat
+                        if (currentUserData && currentUserData.isAdmin && msg.authorId !== currentUserData.uid) {
+                            html += `
+                                <div class="admin-controls">
+                                    <button class="btn-small" onclick="modifyBalance('${msg.authorId}', 10)">+10 FC$</button>
+                                    <button class="btn-small btn-danger" onclick="modifyBalance('${msg.authorId}', -10)">-10 FC$</button>
+                                </div>
+                            `;
+                        }
+                        html += `</div>`;
+                        box.innerHTML += html;
+                    });
+                    box.scrollTop = box.scrollHeight;
+                });
+        }
+
+        function startAdminChatListener() {
+            if(adminChatUnsubscribe) adminChatUnsubscribe();
+            adminChatUnsubscribe = db.collection('admin-chat')
+                .orderBy('timestamp', 'desc')
+                .limit(10)
+                .onSnapshot(snapshot => {
+                    const box = document.getElementById('admin-chat-messages');
+                    box.innerHTML = '';
+                    const msgs = [];
+                    snapshot.forEach(doc => { msgs.push({id: doc.id, ...doc.data()}); });
+                    
+                    msgs.reverse().forEach(msg => {
+                        const date = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString() : '';
+                        let html = `
+                            <div class="msg admin">
+                                <div class="msg-header">
+                                    <span>👑 ${msg.author}</span>
+                                    <span>${date}</span>
+                                </div>
+                                <div>${msg.text}</div>
+                            </div>
+                        `;
+                        box.innerHTML += html;
+                    });
+                    box.scrollTop = box.scrollHeight;
+                });
+        }
+
+        async function modifyBalance(targetUid, amount) {
+            const targetRef = db.collection('users').doc(targetUid);
+            const doc = await targetRef.get();
+            if(doc.exists) {
+                const currentBalance = parseFloat(doc.data().balance || 0);
+                let newBalance = currentBalance + amount;
+                if(newBalance < 0) newBalance = 0;
+                await targetRef.update({ balance: newBalance });
+                alert(`Saldo atualizado com sucesso!`);
+            }
+        }
+        // === 5. JOGOS (MATCHES) E ADMIN PANEL ===
+        function loadAdminUsersList() {
+            db.collection('users').get().then(snap => {
+                const sel = document.getElementById('admin-user-select');
+                if(!sel) return;
+                sel.innerHTML = '<option value="">Selecione um jogador...</option>';
+                snap.forEach(doc => { sel.innerHTML += `<option value="${doc.id}">${doc.data().username}</option>`; });
+            });
+        }
+
+        async function adminTransferMoney(isAdd) {
+            const uid = document.getElementById('admin-user-select').value;
+            const amt = parseFloat(document.getElementById('admin-money-amount').value);
+            if(!uid || isNaN(amt) || amt <= 0) return alert("Selecione um jogador e um valor válido!");
+            const factor = isAdd ? 1 : -1;
+            await modifyBalance(uid, amt * factor);
+            document.getElementById('admin-money-amount').value = '';
+        }
+
+        async function adminCreateMatch() {
+            const home = document.getElementById('new-match-home').value;
+            const homeLogo = document.getElementById('new-match-home-logo').value;
+            const away = document.getElementById('new-match-away').value;
+            const awayLogo = document.getElementById('new-match-away-logo').value;
+            const time = document.getElementById('new-match-time').value;
+
+            if(!home || !away || !time) return alert("Preencha pelo menos os times e o horário!");
+
+            await db.collection('matches').add({
+                home, homeLogo, away, awayLogo, time, score: "0 x 0", status: "Agendado", summary: "",
+                possession: "", mvp: "",
+                timestamp: new Date(time).getTime()
+            });
+            alert("✅ Partida criada com sucesso!");
+        }
+
+        function loadAdminMatchesManagement() {
+            db.collection('matches').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+                const list = document.getElementById('admin-matches-management');
+                if(!list) return;
+                list.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const m = doc.data();
+                    list.innerHTML += `
+                        <div style="background: rgba(0,0,0,0.5); padding: 15px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #ffcc00;">
+                            <h4 style="margin: 0 0 10px 0; color: #ffcc00;">${m.home} vs ${m.away}</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                                <input type="text" id="edit-score-${doc.id}" value="${m.score}" placeholder="Placar (ex: 2 x 1)">
+                                <select id="edit-status-${doc.id}">
+                                    <option value="Agendado" ${m.status==='Agendado'?'selected':''}>Agendado</option>
+                                    <option value="Ao Vivo" ${m.status==='Ao Vivo'?'selected':''}>Ao Vivo</option>
+                                    <option value="Intervalo" ${m.status==='Intervalo'?'selected':''}>Intervalo</option>
+                                    <option value="Encerrado" ${m.status==='Encerrado'?'selected':''}>Encerrado</option>
+                                </select>
+                                <input type="text" id="edit-possession-${doc.id}" value="${m.possession || ''}" placeholder="⚽ Posse (ex: 55% - 45%)">
+                                <input type="text" id="edit-mvp-${doc.id}" value="${m.mvp || ''}" placeholder="⭐ MVP (ex: Neymar)">
+                            </div>
+                            <textarea id="edit-summary-${doc.id}" placeholder="📝 Resumo (ex: Gol aos 15')" style="height: 60px; margin-top: 5px;">${m.summary || ''}</textarea>
+                            <button onclick="adminEditMatch('${doc.id}')" style="background: #2e7d32; margin-top: 5px;">💾 Salvar Edição</button>
+                            <button onclick="deleteMatch('${doc.id}')" class="btn-danger" style="margin-top: 5px;">🗑️ Apagar Jogo</button>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        async function adminEditMatch(id) {
+            const score = document.getElementById(`edit-score-${id}`).value;
+            const status = document.getElementById(`edit-status-${id}`).value;
+            const possession = document.getElementById(`edit-possession-${id}`).value;
+            const mvp = document.getElementById(`edit-mvp-${id}`).value;
+            const summary = document.getElementById(`edit-summary-${id}`).value;
+
+            await db.collection('matches').doc(id).update({
+                score, status, possession, mvp, summary
+            });
+            alert("✅ Edição salva com sucesso!");
+        }
+
+        function loadMatches(filter) {
+            db.collection('matches').orderBy('timestamp', 'asc').onSnapshot(snapshot => {
+                const list = document.getElementById('matches-list');
+                list.innerHTML = '';
+                
+                const today = new Date();
+                const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                const endOfToday = startOfToday + 86400000;
+
+                snapshot.forEach(doc => {
+                    const match = doc.data();
+                    const matchTime = new Date(match.time).getTime();
+                    
+                    if (filter === 'today' && (matchTime < startOfToday || matchTime >= endOfToday)) {
+                        return; // Pula se não for hoje e o filtro for 'today'
+                    }
+
+                    const dateStr = new Date(match.time).toLocaleString('pt-BR');
+                    
+                    let html = `
+                        <div class="match-card">
+                            <div class="match-info">${dateStr} - <strong>${match.status}</strong></div>
+                            <div class="match-teams">
+                                <div><img src="${match.homeLogo || 'https://via.placeholder.com/50'}" class="team-logo"><br><span style="font-size: 14px;">${match.home}</span></div>
+                                <div>${match.score}</div>
+                                <div><img src="${match.awayLogo || 'https://via.placeholder.com/50'}" class="team-logo"><br><span style="font-size: 14px;">${match.away}</span></div>
+                            </div>
+                    `;
+                    
+                    // Mostra dados adicionais no fim do jogo
+                    if (match.status === 'Encerrado') {
+                        if(match.possession) html += `<div style="font-size: 14px; margin-top: 15px; color: #ccc;">⚽ <strong>Posse de Bola:</strong> ${match.possession}</div>`;
+                        if(match.mvp) html += `<div style="font-size: 16px; margin-top: 5px; color: #ffcc00; font-weight: bold;">⭐ MVP: ${match.mvp} ⭐</div>`;
+                    }
+                    if(match.summary) {
+                        html += `<div class="match-summary" style="margin-top: 10px;"><strong>📝 Resumo:</strong><br>${match.summary}</div>`;
+                    }
+
+                    html += `</div>`;
+                    list.innerHTML += html;
+                });
+
+                if(list.innerHTML === '') list.innerHTML = '<p style="text-align:center;">Nenhum jogo encontrado para esta seleção.</p>';
+            });
+        }
+
+        async function deleteMatch(id) {
+            if(confirm("🗑️ Deseja apagar este jogo do painel?")) {
+                await db.collection('matches').doc(id).delete();
+            }
+        }
+
+
+        // === 6. CALLS COM PEER.JS ===
+        function initPeer() {
+            if(peer) return;
+            const cleanId = currentUserData.username.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(Math.random() * 100);
+            peer = new Peer(cleanId);
+            
+            peer.on('open', function(id) {
+                document.getElementById('my-peer-id').innerText = id;
+            });
+
+            peer.on('call', function(call) {
+                if(confirm("Alguém está ligando! Aceitar?")) {
+                    navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
+                        call.answer(stream); 
+                        currentCall = call;
+                        call.on('stream', function(remoteStream) {
+                            document.getElementById('remote-audio').srcObject = remoteStream;
+                        });
+                    }).catch(err => alert("Erro no microfone: " + err));
+                } else {
+                    call.close();
+                }
+            });
+        }
+
+        function makeCall() {
+            const destId = document.getElementById('call-id-input').value.trim();
+            if(!destId) return alert("Digite o ID do amigo!");
+            startCallProtocol(destId);
+        }
+
+        function makeAdminCall() {
+            const destId = document.getElementById('admin-call-id-input').value.trim();
+            if(!destId) return alert("Digite o ID do admin!");
+            startCallProtocol(destId);
+        }
+
+        function startCallProtocol(destId) {
+            navigator.mediaDevices.getUserMedia({video: false, audio: true}).then((stream) => {
+                const call = peer.call(destId, stream);
+                currentCall = call;
+                call.on('stream', function(remoteStream) {
+                    document.getElementById('remote-audio').srcObject = remoteStream;
+                });
+            }).catch(err => alert("Erro no microfone: " + err));
+        }
+
+        function endCall() {
+            if(currentCall) {
+                currentCall.close();
+                currentCall = null;
+                alert("Chamada encerrada.");
+            }
+        }
+
+        // === 7. NAVEGAÇÃO DE TABS ===
+        function showTab(tabName) {
+            ['profile', 'chat', 'matches', 'admin', 'admin-chat'].forEach(t => {
+                const sec = document.getElementById(`sec-${t}`);
+                const tab = document.getElementById(`tab-${t}`);
+                if (sec) sec.classList.add('hidden');
+                if (tab) tab.classList.remove('active');
+            });
+            document.getElementById(`sec-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+    </script>
+</body>
+</html>
+
