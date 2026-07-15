@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteio Automático</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        :root {
+            --primary: #6c5ce7;
+            --bg: #1e272e;
+            --text: #d2dae2;
+            --box-bg: #2d3436;
+            --success: #00b894;
+            --danger: #d63031;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        header {
+            width: 100%;
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.4);
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 600px) {
+            header { flex-direction: column; text-align: center; }
+            .container { margin-top: 20px; padding: 1.5rem; }
+            .timer { font-size: 2rem; }
+            .number-box { font-size: 3.5rem; min-height: 80px; }
+            #adminPanel input, #adminPanel button { width: 100%; }
+        }
+
+        button {
+            background: var(--primary); color: white; border: none;
+            padding: 8px 16px; border-radius: 4px; cursor: pointer;
+            font-weight: bold; transition: 0.3s;
+        }
+        button:hover { background: #5b4bc4; filter: brightness(1.1); }
+        button:disabled { background: #555; cursor: not-allowed; }
+
+        .container {
+            background: var(--box-bg); padding: 2rem; border-radius: 15px;
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 600px; width: 90%; margin-top: 20px; position: relative;
+        }
+
+        h1 { margin-bottom: 1rem; color: #fff; }
+
+        input {
+            padding: 10px; border-radius: 5px; border: 1px solid #555;
+            background: #111; color: #fff; font-size: 1rem;
+        }
+
+        /* Lista de Sorteios */
+        #listaSorteios {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px; width: 90%; max-width: 800px; margin-top: 20px;
+        }
+        
+        .sorteio-card {
+            background: var(--box-bg); padding: 15px; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; transition: 0.2s;
+            border-left: 5px solid var(--primary); display: flex; flex-direction: column; gap: 8px;
+        }
+        .sorteio-card:hover { transform: translateY(-5px); background: #353b3d; }
+        .sorteio-card.encerrado { border-left-color: var(--danger); opacity: 0.7; }
+        .sorteio-card h3 { color: #fff; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; display: inline-block; width: max-content;}
+        .badge.ativo { background: var(--success); color: #fff; }
+        .badge.encerrado { background: var(--danger); color: #fff; }
+
+        /* Sorteio Individual */
+        #viewSorteio { display: none; width: 100%; align-items: center; flex-direction: column; }
+        .btn-voltar { background: #333; margin-bottom: 15px; align-self: flex-start; }
+        
+        #areaCompra {
+            margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.3);
+            border-radius: 10px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap;
+        }
+
+        #adminPanel {
+            display: none; flex-direction: column; gap: 15px; margin-top: 20px;
+            padding-top: 20px; border-top: 1px solid #555;
+        }
+
+        /* Textos e Animações */
+        .status-text { font-size: 1.2rem; margin-bottom: 10px; color: #a4b0be; }
+        .timer { font-size: 3rem; font-weight: bold; color: #fffa65; letter-spacing: 2px; }
+        .number-box {
+            font-size: 5rem; font-weight: 900; color: #fff;
+            text-shadow: 0 0 20px var(--primary); min-height: 120px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        @keyframes roleta { 0% { transform: translateY(-20px); opacity: 0.5; } 50% { transform: translateY(0px); opacity: 1; } 100% { transform: translateY(20px); opacity: 0.5; } }
+        @keyframes popVencedor { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; text-shadow: 0 0 40px #00d2d3, 0 0 80px #00d2d3; color: #00d2d3; } }
+
+        .animando { animation: roleta 0.1s infinite linear; color: #ff9f43; }
+        .vencedor { animation: popVencedor 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* Login & Popups */
+        #loginScreen {
+            display: flex; flex-direction: column; gap: 15px; background: var(--box-bg);
+            padding: 3rem; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 400px; width: 90%; margin: auto; margin-top: 10vh;
+        }
+
+        #appScreen { display: none; width: 100%; align-items: center; flex-direction: column; }
+
+        #winnerPopup {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0, 210, 211, 0.95); color: #111; padding: 30px; border-radius: 15px;
+            font-size: 1.5rem; font-weight: bold; text-align: center; z-index: 1000;
+            box-shadow: 0 0 30px #00d2d3; animation: popVencedor 0.5s ease-out forwards;
+        }
+
+        /* Chat */
+        #btnAbrirChat {
+            position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%;
+            background: var(--primary); color: white; font-size: 24px; border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); cursor: pointer; display: none; z-index: 99;
+            align-items: center; justify-content: center;
+        }
+        #chatContainer {
+            position: fixed; bottom: 90px; right: 20px; width: 300px; background: var(--box-bg);
+            border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;
+            flex-direction: column; overflow: hidden; z-index: 100;
+        }
+        @media (max-width: 600px) { #chatContainer { width: 90%; right: 5%; bottom: 90px; } }
+        #chatMessages { height: 200px; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 5px; font-size: 0.9rem; }
+        #chatMessages div { background: #111; padding: 5px 10px; border-radius: 5px; word-wrap: break-word; }
+        #chatInputContainer { display: flex; padding: 10px; background: #222; }
+        #chatInputContainer input { flex: 1; padding: 5px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="loginScreen">
+        <h2>Acesso ao Sorteio</h2>
+        <input type="text" id="loginUser" placeholder="Nome de Usuário (Ex: Carlos)">
+        <input type="password" id="loginPass" placeholder="Senha">
+        <button onclick="fazerLogin()">Entrar</button>
+    </div>
+
+    <div id="appScreen">
+        <header>
+            <h2>SorteioLive</h2>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center;">
+                <button onclick="window.location.href='https://luanhenry987.github.io/Chat-mania/'" style="background: #3498db;">Voltar</button>
+                <span id="userBalance" style="font-weight: bold; color: #00d2d3;">Saldo: 0</span>
+                <button id="btnAdmin" style="display:none;" onclick="mostrarAdmin()">Área Adm</button>
+                <button onclick="fazerLogoff()" style="background: #e74c3c;">Sair</button>
+            </div>
+        </header>
+
+        <!-- TELA 1: LISTA DE SORTEIOS -->
+        <div id="viewListaSorteios" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="container" id="adminPanel" style="width: 90%; max-width: 800px;">
+                <h3>Agendar Novo Sorteio</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="text" id="codigoSorteio" placeholder="Nome do Sorteio (Ex: Sorteio 01)" style="flex:1;">
+                    <input type="datetime-local" id="dataHora">
+                    <input type="number" id="numMax" min="2" max="1000000" placeholder="Máx Bilhetes (ex: 100)" style="width: 150px;">
+                    <button onclick="agendarSorteio()">Criar</button>
+                </div>
+                <hr style="border-color: #555; margin: 20px 0;">
+                <h3>Configuração Geral do Bilhete</h3>
+                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                    <input type="number" id="confCustoGeral" placeholder="Custo Único (Ex: 2)" value="2" style="width: 150px;">
+                    <button onclick="configurarValorGeral()">Salvar Configuração</button>
+                </div>
+                
+                <hr style="border-color: #555; margin: 20px 0;">
+                <h3>Limpeza de Banco de Dados</h3>
+                <button onclick="apagarSorteiosEncerrados()" style="background: var(--danger); width: 100%;">Apagar Sorteios Encerrados</button>
+            </div>
+
+            <h2 style="margin-top: 30px;">Sorteios Disponíveis</h2>
+            <div id="listaSorteios">
+                <!-- Sorteios serão injetados aqui -->
+            </div>
+        </div>
+
+        <!-- TELA 2: SORTEIO INDIVIDUAL -->
+        <div id="viewSorteio">
+            <div class="container">
+                <button class="btn-voltar" onclick="voltarParaLista()">← Voltar para Lista</button>
+                
+                <h1 id="tituloSorteioInd">Carregando...</h1>
+                
+                <div id="drawDisplay">
+                    <div class="status-text" id="statusText">Aguardando agendamento...</div>
+                    <div id="mainContent" class="timer">--:--:--</div>
+                </div>
+
+                <!-- Área de compra movida para cá. Só aparece se o sorteio não tiver acabado -->
+                <div id="areaCompra">
+                    <input type="number" id="numComprar" placeholder="Nº Bilhete" style="width: 120px;">
+                    <button id="btnParticipar" onclick="comprarTicket()">Comprar Bilhete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup Vencedor -->
+    <div id="winnerPopup">
+        <h2>🎉 VOCÊ GANHOU! 🎉</h2>
+        <p id="winnerPrizeText">Prêmio recebido: 0 moedas</p>
+        <button onclick="fecharPopup()" style="margin-top: 15px; background: #111;">Fechar</button>
+    </div>
+
+    <!-- Chat -->
+    <button id="btnAbrirChat" onclick="toggleChat()">💬</button>
+    <div id="chatContainer">
+        <div style="background: #111; padding: 5px 10px; font-weight: bold; text-align: center; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+            <span>Chat Global</span>
+            <button onclick="toggleChat()" style="background: transparent; color: #ff6b81; padding: 0; font-size: 16px;">✖</button>
+        </div>
+        <div id="chatMessages"></div>
+        <div id="chatInputContainer">
+            <input type="text" id="chatMsg" placeholder="Mensagem..." onkeypress="if(event.key === 'Enter') enviarMensagemChat()">
+            <button onclick="enviarMensagemChat()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxnSJSTHuEnmzMZj-z-1YiTEo8cLLGbKk",
+            authDomain: "star-super-v2.firebaseapp.com",
+            projectId: "star-super-v2",
+            storageBucket: "star-super-v2.firebasestorage.app",
+            messagingSenderId: "279120272242",
+            appId: "1:279120272242:web:c93061cbc8ca26c21b5beb",
+            measurementId: "G-032NH18WM3"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 2. Variáveis Globais
+        let usuarioLogado = null;
+        let sorteiosGlobais = [];
+        let sorteioSelecionadoId = null;
+        let sorteioAtualData = null;
+        let intervaloTimer = null;
+        let statusSorteio = 'AGUARDANDO';
+        let listenerSorteioIndividual = null;
+
+        // Auto-Login
+        window.onload = function() {
+            const userSalvo = localStorage.getItem('autoLoginUser');
+            const passSalvo = localStorage.getItem('autoLoginPass');
+            if (userSalvo && passSalvo) {
+                document.getElementById('loginUser').value = userSalvo;
+                document.getElementById('loginPass').value = passSalvo;
+                fazerLogin();
+            }
+        };
+
+        // 3. Autenticação e Interface
+        function fazerLogin() {
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+
+            if (!user || !pass) { alert("Preencha usuário e senha!"); return; }
+
+            db.collection('users').doc(user).get().then((doc) => {
+                if (doc.exists && doc.data().password === pass) {
+                    usuarioLogado = doc.data();
+                    usuarioLogado.id = doc.id;
+                    
+                    localStorage.setItem('autoLoginUser', user);
+                    localStorage.setItem('autoLoginPass', pass);
+                    
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appScreen').style.display = 'flex';
+                    document.getElementById('btnAbrirChat').style.display = 'flex';
+                    document.getElementById('userBalance').innerText = `Saldo: ${usuarioLogado.balance}`;
+
+                    if (usuarioLogado.isAdmin === true) {
+                        document.getElementById('btnAdmin').style.display = 'inline-block';
+                    }
+
+                    // Listener do Saldo
+                    db.collection('users').doc(user).onSnapshot((snap) => {
+                        if(snap.exists) {
+                            usuarioLogado.balance = snap.data().balance;
+                            document.getElementById('userBalance').innerText = `Saldo: ${usuarioLogado.balance}`;
+                        }
+                    });
+
+                    iniciarChat();
+                    iniciarListenerListaSorteios(); // Carrega a lista de sorteios
+                } else {
+                    alert("Usuário não existe ou senha incorreta!");
+                    fazerLogoff();
+                }
+            }).catch((error) => alert("Erro de conexão com o banco de dados."));
+        }
+
+        function fazerLogoff() {
+            localStorage.removeItem('autoLoginUser');
+            localStorage.removeItem('autoLoginPass');
+            location.reload();
+        }
+
+        function mostrarAdmin() {
+            const panel = document.getElementById('adminPanel');
+            panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        // 4. Chat Global
+        function toggleChat() {
+            const chat = document.getElementById('chatContainer');
+            chat.style.display = (chat.style.display === 'none' || chat.style.display === '') ? 'flex' : 'none';
+        }
+
+        function iniciarChat() {
+            db.collection('chat_2').orderBy('timestamp', 'asc').onSnapshot((snapshot) => {
+                const msgsDiv = document.getElementById('chatMessages');
+                msgsDiv.innerHTML = '';
+                let docs = snapshot.docs;
+                
+                if (docs.length > 10) {
+                    const docsParaApagar = docs.slice(0, docs.length - 10);
+                    docsParaApagar.forEach(d => db.collection('chat_2').doc(d.id).delete());
+                    docs = docs.slice(docs.length - 10);
+                }
+
+                docs.forEach(doc => {
+                    const data = doc.data();
+                    const msgEl = document.createElement('div');
+                    msgEl.innerHTML = `<b style="color:var(--primary)">${data.user}:</b> ${data.mensagem}`;
+                    msgsDiv.appendChild(msgEl);
+                });
+                msgsDiv.scrollTop = msgsDiv.scrollHeight;
+            });
+        }
+
+        function enviarMensagemChat() {
+            const input = document.getElementById('chatMsg');
+            const msg = input.value.trim();
+            if (!msg || !usuarioLogado) return;
+            db.collection('chat_2').add({
+                user: usuarioLogado.id, mensagem: msg, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = '';
+        }
+
+        // 5. Sistema de Múltiplos Sorteios (Admin Criação)
+        function agendarSorteio() {
+            const codigo = document.getElementById('codigoSorteio').value;
+            const dataHoraStr = document.getElementById('dataHora').value;
+            const max = parseInt(document.getElementById('numMax').value);
+
+            if (!codigo || !dataHoraStr || !max || max < 2) {
+                alert("Preencha todos os campos corretamente (mínimo 2 bilhetes).");
+                return;
+            }
+
+            const timestampSorteio = new Date(dataHoraStr).getTime();
+            if (timestampSorteio <= new Date().getTime()) {
+                alert("A data/hora deve ser no futuro!");
+                return;
+            }
+
+            const numeroSorteado = Math.floor(Math.random() * max) + 1;
+
+            db.collection("sorteios").add({
+                codigo: codigo,
+                dataAgendada: timestampSorteio,
+                numeroMaximo: max,
+                vencedor: numeroSorteado,
+                criadoEm: new Date().getTime()
+            }).then(() => {
+                alert("Sorteio criado com sucesso!");
+                document.getElementById('codigoSorteio').value = '';
+                document.getElementById('dataHora').value = '';
+                document.getElementById('numMax').value = '';
+            });
+        }
+
+        function configurarValorGeral() {
+            const custo = parseFloat(document.getElementById('confCustoGeral').value);
+
+            if (!custo || custo <= 0) { alert("Preencha um valor válido para o bilhete!"); return; }
+
+            // Salva um único valor geral para todos os bilhetes
+            db.collection("config_geral").doc("valores").set({ custoGeral: custo }).then(() => {
+                alert(`Valor geral de todos os bilhetes atualizado para ${custo} moedas!`);
+            });
+        }
+
+        // 6. Listagem de Sorteios
+        function iniciarListenerListaSorteios() {
+            db.collection("sorteios").orderBy("dataAgendada", "asc").onSnapshot((snapshot) => {
+                const listaEl = document.getElementById('listaSorteios');
+                listaEl.innerHTML = '';
+                const agora = new Date().getTime();
+                const quatroHorasMs = 4 * 60 * 60 * 1000;
+
+                if(snapshot.empty) {
+                    listaEl.innerHTML = '<p>Nenhum sorteio disponível no momento.</p>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const momentoDeletar = data.dataAgendada + quatroHorasMs;
+
+                    // Auto-delete se passou de 4 horas do fim
+                    if (agora >= momentoDeletar) {
+                        db.collection("sorteios").doc(doc.id).delete();
+                        return;
+                    }
+
+                    const isEncerrado = agora >= data.dataAgendada;
+                    const dataFormatada = new Date(data.dataAgendada).toLocaleString();
+
+                    const card = document.createElement('div');
+                    card.className = `sorteio-card ${isEncerrado ? 'encerrado' : ''}`;
+                    card.onclick = () => abrirSorteio(doc.id, data);
+
+                    card.innerHTML = `
+                        <h3>${data.codigo}</h3>
+                        <p style="font-size:0.9rem; color:#aaa;">Data: ${dataFormatada}</p>
+                        <p style="font-size:0.9rem;">Bilhetes: 1 até ${data.numeroMaximo}</p>
+                        <span class="badge ${isEncerrado ? 'encerrado' : 'ativo'}">${isEncerrado ? 'Encerrado' : 'Aberto para Compras'}</span>
+                    `;
+                    listaEl.appendChild(card);
+                });
+            });
+        }
+
+        // 7. Tela do Sorteio Individual
+        function abrirSorteio(id, dataSorteio) {
+            sorteioSelecionadoId = id;
+            document.getElementById('viewListaSorteios').style.display = 'none';
+            document.getElementById('viewSorteio').style.display = 'flex';
+            document.getElementById('tituloSorteioInd').innerText = dataSorteio.codigo;
+
+            // Escuta as atualizações desse sorteio específico
+            if(listenerSorteioIndividual) listenerSorteioIndividual(); // Limpa anterior
+            
+            listenerSorteioIndividual = db.collection("sorteios").doc(id).onSnapshot((doc) => {
+                if (doc.exists) {
+                    sorteioAtualData = doc.data();
+                    iniciarRelogioIndividual();
+                } else {
+                    alert("Este sorteio não existe mais.");
+                    voltarParaLista();
+                }
+            });
+        }
+
+        function voltarParaLista() {
+            if(listenerSorteioIndividual) listenerSorteioIndividual(); // Para de escutar
+            if(intervaloTimer) clearInterval(intervaloTimer);
+            sorteioSelecionadoId = null;
+            sorteioAtualData = null;
+            document.getElementById('viewSorteio').style.display = 'none';
+            document.getElementById('viewListaSorteios').style.display = 'flex';
+        }
+
+        // 8. Lógica de Compra Estrita e Dinâmica
+        function comprarTicket() {
+            if (!usuarioLogado || !sorteioSelecionadoId || !sorteioAtualData) return;
+
+            // BLOQUEIO: Não deixa comprar se o sorteio já começou/terminou
+            if (new Date().getTime() >= sorteioAtualData.dataAgendada) {
+                alert("As compras para este sorteio foram encerradas!");
+                document.getElementById('areaCompra').style.display = 'none';
+                return;
+            }
+
+            const numEscolhido = parseInt(document.getElementById('numComprar').value);
+            if (!numEscolhido || numEscolhido < 1 || numEscolhido > sorteioAtualData.numeroMaximo) {
+                alert(`Escolha um número válido entre 1 e ${sorteioAtualData.numeroMaximo}`);
+                return;
+            }
+
+            const ticketsRef = db.collection("sorteios").doc(sorteioSelecionadoId).collection("compradores");
+            
+            // Busca todos os bilhetes comprados neste sorteio para calcular a matemática do balanceamento
+            ticketsRef.get().then((snapshot) => {
+                let qtyNumeroEscolhido = 0;
+                let qtyOutrosNumeros = 0;
+
+                snapshot.forEach((doc) => {
+                    if (doc.data().numero === numEscolhido) {
+                        qtyNumeroEscolhido++;
+                    } else {
+                        qtyOutrosNumeros++;
+                    }
+                });
+
+                // MATEMÁTICA PRINCIPAL DE BALANCEAMENTO:
+                // Base = 1.50
+                // -0.20 para cada bilhete igual já comprado
+                // +0.30 para cada bilhete diferente já comprado
+                let multiplicadorAtual = 1.50 - (qtyNumeroEscolhido * 0.20) + (qtyOutrosNumeros * 0.30);
+                if (multiplicadorAtual < 0.1) multiplicadorAtual = 0.1; // Proteção para não ficar zerado ou negativo
+
+                // Puxa o valor geral do bilhete configurado pelo Admin
+                db.collection("config_geral").doc("valores").get().then((docConfig) => {
+                    let custoTicket = 2; // Custo Padrão se não houver configuração
+
+                    if (docConfig.exists && docConfig.data().custoGeral) {
+                        custoTicket = docConfig.data().custoGeral;
+                    }
+
+                    // O Prêmio é calculado com base no multiplicador que inicia em 1.50
+                    let premioGarantido = custoTicket * multiplicadorAtual;
+
+                    if (usuarioLogado.balance >= custoTicket) {
+                        db.collection('users').doc(usuarioLogado.id).update({
+                            balance: firebase.firestore.FieldValue.increment(-custoTicket)
+                        }).then(() => {
+                            // Salva usando .add() para permitir múltiplas compras do mesmo número
+                            ticketsRef.add({
+                                numero: numEscolhido,
+                                user: usuarioLogado.id,
+                                premio: parseFloat(premioGarantido.toFixed(2)),
+                                custo: custoTicket,
+                                multiplicadorAplicado: parseFloat(multiplicadorAtual.toFixed(2)),
+                                dataCompra: new Date().getTime(),
+                                premioEntregue: false
+                            }).then(() => {
+                                alert(`Você comprou o bilhete #${numEscolhido} por ${custoTicket} moedas!\n\nPrêmio travado em caso de vitória: ${premioGarantido.toFixed(2)} moedas\n(Multiplicador do momento: ${multiplicadorAtual.toFixed(2)}x)`);
+                                document.getElementById('numComprar').value = '';
+                            });
+                        });
+                    } else {
+                        alert(`Saldo insuficiente! O custo é ${custoTicket} moedas.`);
+                    }
+                });
+            });
+        }
+
+        // 9. Relógio e Animação Individual
+        function iniciarRelogioIndividual() {
+            if (intervaloTimer) clearInterval(intervaloTimer);
+            statusSorteio = 'AGUARDANDO';
+            
+            const mainEl = document.getElementById('mainContent');
+            const statusEl = document.getElementById('statusText');
+            const areaCompra = document.getElementById('areaCompra');
+            mainEl.className = 'timer';
+
+            intervaloTimer = setInterval(() => {
+                const agora = new Date().getTime();
+                const diff = sorteioAtualData.dataAgendada - agora;
+
+                if (diff > 0) {
+                    areaCompra.style.display = 'flex'; // Mostra compras se está no tempo
+                    statusEl.innerText = "O Sorteio começará em:";
+                    
+                    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    mainEl.innerText = String(horas).padStart(2, '0') + ":" + String(minutos).padStart(2, '0') + ":" + String(segundos).padStart(2, '0');
+                } else {
+                    clearInterval(intervaloTimer);
+                    areaCompra.style.display = 'none'; // BLOQUEIA COMPRA FECHANDO A DIV
+                    
+                    // Se já passou muito tempo (ex: usuário entrou depois de concluído), mostra direto. 
+                    // Se acabou de zerar, faz animação.
+                    if (diff < -5000) { // Passou mais de 5 segundos
+                        mostrarVencedorDireto();
+                    } else {
+                        iniciarAnimacaoDoSorteio();
+                    }
+                }
+            }, 1000);
+        }
+
+        function iniciarAnimacaoDoSorteio() {
+            if (statusSorteio !== 'AGUARDANDO') return;
+            statusSorteio = 'ANIMANDO';
+
+            const mainEl = document.getElementById('mainContent');
+            const statusEl = document.getElementById('statusText');
+            
+            statusEl.innerText = "SORTEANDO...";
+            mainEl.className = 'number-box animando';
+
+            let tempoAnimacao = 0;
+            const tempoTotalAnimacao = 4000;
+            const max = sorteioAtualData.numeroMaximo;
+
+            const shuffleInterval = setInterval(() => {
+                mainEl.innerText = Math.floor(Math.random() * max) + 1;
+                tempoAnimacao += 50;
+
+                if (tempoAnimacao >= tempoTotalAnimacao) {
+                    clearInterval(shuffleInterval);
+                    mostrarVencedorDireto();
+                }
+            }, 50);
+        }
+
+        function mostrarVencedorDireto() {
+            statusSorteio = 'FINALIZADO';
+            document.getElementById('statusText').innerText = "O NÚMERO VENCEDOR FOI:";
+            const mainEl = document.getElementById('mainContent');
+            mainEl.className = 'number-box vencedor'; 
+            mainEl.innerText = sorteioAtualData.vencedor; 
+            
+            document.getElementById('areaCompra').style.display = 'none'; // Garante que compra sumiu
+
+            verificarSeGanhou();
+        }
+
+        function verificarSeGanhou() {
+            if (!usuarioLogado || !sorteioSelecionadoId || !sorteioAtualData.vencedor) return;
+
+            const ticketsRef = db.collection("sorteios").doc(sorteioSelecionadoId).collection("compradores");
+
+            // Agora busca todos os bilhetes na coleção, permitindo resgatar prêmios caso o usuário tenha comprado mais de uma vez o mesmo número
+            ticketsRef.get().then((snapshot) => {
+                let totalPremio = 0;
+                let docsToUpdate = [];
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    if (data.numero === sorteioAtualData.vencedor && data.user === usuarioLogado.id && !data.premioEntregue) {
+                        totalPremio += data.premio;
+                        docsToUpdate.push(doc.id);
+                    }
+                });
+
+                if (totalPremio > 0) {
+                    document.getElementById('winnerPrizeText').innerText = `Prêmio recebido: ${totalPremio.toFixed(2)} moedas!`;
+                    document.getElementById('winnerPopup').style.display = 'block';
+
+                    db.collection('users').doc(usuarioLogado.id).update({
+                        balance: firebase.firestore.FieldValue.increment(totalPremio)
+                    });
+
+                    // Marca todos os bilhetes vencedores deste usuário como entregues para não pagar em dobro
+                    docsToUpdate.forEach(docId => {
+                        ticketsRef.doc(docId).update({
+                            premioEntregue: true
+                        });
+                    });
+                }
+            });
+        }
+
+        function fecharPopup() {
+            document.getElementById('winnerPopup').style.display = 'none';
+        }
+
+        // 10. Limpeza de Banco de Dados (Apenas para Admin)
+        function apagarSorteiosEncerrados() {
+            if(confirm("Tem certeza que deseja apagar do banco de dados todos os sorteios que já foram encerrados?")) {
+                const agora = new Date().getTime();
+                
+                db.collection("sorteios").get().then((snapshot) => {
+                    let apagados = 0;
+                    snapshot.forEach((doc) => {
+                        const data = doc.data();
+                        // Se a data de agora passou da data agendada, o sorteio já terminou
+                        if (agora >= data.dataAgendada) {
+                            db.collection("sorteios").doc(doc.id).delete();
+                            apagados++;
+                        }
+                    });
+                    
+                    if (apagados > 0) {
+                        alert(`${apagados} sorteio(s) encerrado(s) deletado(s) com sucesso para não poluir o sistema!`);
+                    } else {
+                        alert("Nenhum sorteio encerrado encontrado no momento.");
+                    }
+                }).catch((error) => {
+                    alert("Erro ao tentar apagar sorteios: " + error);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
+  
